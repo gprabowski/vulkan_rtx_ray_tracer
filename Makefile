@@ -1,0 +1,13 @@
+CFLAGS = -std=c++17 -I$(VULKAN_SDK)/include -DDEBUG
+LDFLAGS = -L$(VULKAN_SDK)/lib `pkg-config --static --libs glfw3` -lvulkan
+
+VulkanTest: main.cpp
+	g++ $(CFLAGS) -o VulkanTest main.cpp $(LDFLAGS)
+
+.PHONY: test clean
+
+test: VulkanTest
+	./VulkanTest
+
+clean:
+	rm -f VulkanTest
