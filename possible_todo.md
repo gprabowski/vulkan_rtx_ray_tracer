@@ -11,3 +11,6 @@ on the transfer queue family
 and specify both the graphics and transfer queue families
 - [ ] submit any transfer commands like vkCmdCopyBuffer to the transfer queue \
 insted of the graphics queue
+
+### aliasing of index buffers instead of separate ones
+### switch to push constants
