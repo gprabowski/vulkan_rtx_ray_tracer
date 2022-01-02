@@ -1,3 +1,4 @@
 .cache
 spv
 VulkanTest
+compile_commands.json

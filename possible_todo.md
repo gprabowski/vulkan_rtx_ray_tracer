@@ -14,3 +14,8 @@ insted of the graphics queue
 
 ### aliasing of index buffers instead of separate ones
 ### switch to push constants
+### move commands to a single buffer 
+- [ ] especially transitions and copy in the createTextureImage function
+- [ ] create a setupCommandBuffer (helper functions record commands into it)
+- [ ] next flushSetupCommands (execture the commands that have been
+recorded so far
