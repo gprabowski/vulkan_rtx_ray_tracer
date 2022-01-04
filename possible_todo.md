@@ -19,3 +19,6 @@ insted of the graphics queue
 - [ ] create a setupCommandBuffer (helper functions record commands into it)
 - [ ] next flushSetupCommands (execture the commands that have been
 recorded so far
+### implementing mipmapping alternatively
+- [ ] as resizing with stb\_resize
+- [ ] loading multiple levels from a file
