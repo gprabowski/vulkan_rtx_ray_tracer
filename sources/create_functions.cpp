@@ -60,9 +60,41 @@ void RayTracerApp::createLogicalDevice() {
 
   QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
+
+  // RAY TRACING EXTENSIONS
+  VkPhysicalDeviceProperties2 physicalDeviceProperties {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2
+  };
+  VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtPipelineProperties{
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR
+  };
+  physicalDeviceProperties.pNext = &rtPipelineProperties;
+  vkGetPhysicalDeviceProperties2(physicalDevice, &physicalDeviceProperties);
+
   std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
   std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(),
                                             indices.presentFamily.value()};
+
+  VkPhysicalDeviceFeatures2 features2{
+    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+  VkPhysicalDeviceVulkan12Features features12 {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+  VkPhysicalDeviceVulkan11Features features11 {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
+  VkPhysicalDeviceAccelerationStructureFeaturesKHR asFeatures {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR };
+  VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtPipelineFeatures{
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR };
+
+  features2.pNext = &features12;
+  features12.pNext = &features11;
+  features11.pNext = &asFeatures;
+  asFeatures.pNext = &rtPipelineFeatures;
+
+  // Query supported features
+  vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
+
+  // END OF RAY TRACING
 
   float queuePriority = 1.0f;
   for (uint32_t queueFamily : uniqueQueueFamilies) {
@@ -86,9 +118,17 @@ void RayTracerApp::createLogicalDevice() {
 
   createInfo.pEnabledFeatures = &deviceFeatures;
 
+  // extensions
+  std::vector<const char *> allExtensions;
+  allExtensions.reserve(rtExtensions.size() + deviceExtensions.size());
+  allExtensions.insert(begin(allExtensions), begin(deviceExtensions), end(deviceExtensions));
+  allExtensions.insert(begin(allExtensions), begin(rtExtensions), end(rtExtensions));
+
   createInfo.enabledExtensionCount =
-      static_cast<uint32_t>(deviceExtensions.size());
-  createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+      static_cast<uint32_t>(allExtensions.size());
+  createInfo.ppEnabledExtensionNames = allExtensions.data();
+
+  createInfo.pNext = &features2;
 
   if (enableValidationLayers) {
     createInfo.enabledLayerCount =
