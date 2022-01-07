@@ -180,6 +180,7 @@ struct RayTracerApp {
   void pickPhysicalDevice();
   bool isDeviceSuitable(VkPhysicalDevice device);
   bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+  bool checkRTExtensionSupport(VkPhysicalDevice device);
   QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
   void updateUniformBuffers(uint32_t currentImage);
   void setupDebugMessenger();
