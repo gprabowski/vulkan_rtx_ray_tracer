@@ -33,8 +33,13 @@ endfunction(add_shader)
 file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 include_directories(3rdparty/)
+include_directories(headers/)
 
-add_executable(${PROJECT_NAME} main.cpp)
+set(SOURCES
+    sources/main.cpp sources/ray_tracer.cpp sources/extension_functions.cpp sources/vertex.cpp sources/setup_utilities.cpp sources/lib_impl.cpp sources/vulkan_utilities.cpp sources/create_functions.cpp sources/asset_utilities.cpp
+    headers/ray_tracer.h headers/constants.h headers/extension_functions.h headers/vertex.h )
+
+add_executable(${PROJECT_NAME} ${SOURCES})
 add_shader(${PROJECT_NAME} shader.vert)
 add_shader(${PROJECT_NAME} shader.frag)
 
