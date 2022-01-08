@@ -484,6 +484,7 @@ void RayTracerApp::createRT_BLAS() {
         VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR };
     triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
     triangles.vertexData.deviceAddress = vertexRTBufferAddress;
+    triangles.vertexStride = 3 * sizeof(float);
     triangles.indexType = VK_INDEX_TYPE_UINT32;
     triangles.indexData.deviceAddress = indexRTBufferAddress;
     triangles.maxVertex = uint32_t(ray_model.vertices.size() - 1);
