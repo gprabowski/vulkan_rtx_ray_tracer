@@ -30,7 +30,7 @@ void RayTracerApp::initVulkan() {
   createVertexBuffer();
   createIndexBuffer();
 
-  loadRTGeometry(ray_model, std::string(MODEL_PATH));
+  loadRTGeometry(ray_model, std::string(LOW_POLY_MODEL_PATH));
   createRTVertexBuffer();
   createRTIndexBuffer();
 
@@ -41,7 +41,7 @@ void RayTracerApp::initVulkan() {
   createSyncObjects();
 
   createRT_BLAS();
-  // createRT_TLAS();
+  createRT_TLAS();
 }
 
 bool RayTracerApp::hasStencilComponent(VkFormat format) {

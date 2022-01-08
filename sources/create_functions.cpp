@@ -482,7 +482,7 @@ void RayTracerApp::createVertexBuffer() {
 void RayTracerApp::createRT_BLAS() {
     VkAccelerationStructureGeometryTrianglesDataKHR triangles {
         VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR };
-    triangles.vertexFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
+    triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
     triangles.vertexData.deviceAddress = vertexRTBufferAddress;
     triangles.indexType = VK_INDEX_TYPE_UINT32;
     triangles.indexData.deviceAddress = indexRTBufferAddress;

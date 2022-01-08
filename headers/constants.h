@@ -11,6 +11,8 @@ constexpr uint32_t HEIGHT = 600;
 constexpr std::string_view MODEL_PATH = "assets/models/viking_room.obj";
 constexpr std::string_view TEXTURE_PATH = "assets/textures/viking_room.png";
 
+constexpr std::string_view LOW_POLY_MODEL_PATH = "assets/models/low.obj";
+
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
 constexpr std::array<const char *, 1> validationLayers = {

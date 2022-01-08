@@ -45,7 +45,7 @@ void RayTracerApp::loadRTGeometry(rt_model& m, std::string path) {
     std::string warn, err;
 
     if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
-                          std::string(MODEL_PATH).c_str())) {
+                          path.c_str())) {
       throw std::runtime_error(warn + err);
     }
 
