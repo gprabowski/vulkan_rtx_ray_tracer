@@ -72,6 +72,11 @@ struct model {
   std::vector<uint32_t> indices;
 };
 
+struct rt_model {
+  std::vector<float> vertices;
+  std::vector<uint32_t> indices;
+};
+
 struct RayTracerApp {
 
   // DISPATCHABLE OBJECTS ============================
@@ -109,10 +114,31 @@ struct RayTracerApp {
   std::vector<VkFence> imagesInFlight;
   size_t currentFrame = 0;
   bool framebufferResized = false;
+
   VkBuffer vertexBuffer;
   VkDeviceMemory vertexBufferMemory;
+
+  VkBuffer vertexRTBuffer;
+  VkDeviceMemory vertexRTBufferMemory;
+
   VkBuffer indexBuffer;
   VkDeviceMemory indexBufferMemory;
+
+  VkBuffer indexRTBuffer;
+  VkDeviceMemory indexRTBufferMemory;
+
+  VkBuffer blasBuffer;
+  VkDeviceMemory blasBufferMemory;
+
+  VkBuffer scratchBuffer;
+  VkDeviceMemory scratchBufferMemory;
+
+  VkAccelerationStructureKHR blas;
+
+
+  VkDeviceAddress vertexRTBufferAddress;
+  VkDeviceAddress indexRTBufferAddress;
+
   std::vector<VkBuffer> uniformBuffers;
   std::vector<VkDeviceMemory> uniformBuffersMemory;
   VkDescriptorPool descriptorPool;
@@ -126,6 +152,7 @@ struct RayTracerApp {
   VkDeviceMemory depthImageMemory;
   VkImageView depthImageView;
   model tutorial_model;
+  rt_model ray_model;
 
   // member functions
   void run();
@@ -157,8 +184,14 @@ struct RayTracerApp {
   void createDescriptorPool();
   void createUniformBuffers();
   void createDescriptorSetLayout();
+
   void createIndexBuffer();
   void createVertexBuffer();
+
+  void createRTIndexBuffer();
+  void createRTVertexBuffer();
+  void createRTAccelerationStructure();
+
   void recreateSwapChain();
   void createDescriptorSets();
   void createSyncObjects();
@@ -185,7 +218,8 @@ struct RayTracerApp {
   void updateUniformBuffers(uint32_t currentImage);
   void setupDebugMessenger();
   void mainLoop();
-  void drawFrame();
+  void drawRasterFrame();
+  void drawRTFrame();
   void cleanupSwapChain();
   void cleanup();
   void populateDebugMessengerCreateInfo(
@@ -211,10 +245,13 @@ struct RayTracerApp {
   void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
   void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
                     VkMemoryPropertyFlags properties, VkBuffer &buffer,
-                    VkDeviceMemory &bufferMemory);
+                    VkDeviceMemory &bufferMemory,
+                    VkMemoryAllocateFlags allocFlags = VK_MEMORY_ALLOCATE_FLAG_BITS_MAX_ENUM);
   // asset utils
   std::vector<char> readFile(const std::string &filename);
   void loadModel(model &m);
+  void loadRTGeometry(rt_model& m, std::string path);
+
 
 };
 

@@ -411,6 +411,39 @@ void RayTracerApp::createIndexBuffer() {
   vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
+void RayTracerApp::createRTIndexBuffer() {
+  VkDeviceSize bufferSize = sizeof(ray_model.indices[0]) * ray_model.indices.size();
+
+  VkBuffer stagingBuffer;
+  VkDeviceMemory stagingBufferMemory;
+
+  createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+               stagingBuffer, stagingBufferMemory);
+
+  void *data;
+  vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+  memcpy(data, tutorial_model.indices.data(), (size_t)bufferSize);
+  vkUnmapMemory(device, stagingBufferMemory);
+
+  createBuffer(
+      bufferSize,
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexRTBuffer, indexRTBufferMemory);
+
+  copyBuffer(stagingBuffer, indexRTBuffer, bufferSize);
+
+
+  VkBufferDeviceAddressInfo addressInfo{};
+  addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+  addressInfo.buffer = indexRTBuffer;
+  indexRTBufferAddress = ExtFun::vkGetBufferDeviceAddress(device, &addressInfo);
+
+  vkDestroyBuffer(device, stagingBuffer, nullptr);
+  vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
 void RayTracerApp::createVertexBuffer() {
   VkDeviceSize bufferSize = sizeof(tutorial_model.vertices[0]) * tutorial_model.vertices.size();
 
@@ -443,55 +476,186 @@ void RayTracerApp::createVertexBuffer() {
   vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
+void RayTracerApp::createRTAccelerationStructure() {
+    VkAccelerationStructureGeometryTrianglesDataKHR triangles {
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR };
+    triangles.vertexFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
+    triangles.vertexData.deviceAddress = vertexRTBufferAddress;
+    triangles.indexType = VK_INDEX_TYPE_UINT32;
+    triangles.indexData.deviceAddress = indexRTBufferAddress;
+    triangles.maxVertex = uint32_t(ray_model.vertices.size() - 1);
+    triangles.transformData = {0 }; // NO TRANSFORM
+
+    VkAccelerationStructureGeometryKHR geometry {
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR
+    };
+    geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+    geometry.geometry.triangles = triangles;
+    geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR; // turn off any hit shaders
+
+    VkAccelerationStructureBuildRangeInfoKHR rangeInfo;
+    rangeInfo.firstVertex = 0;
+    rangeInfo.primitiveCount = static_cast<uint32_t>(ray_model.indices.size() / 3);
+    rangeInfo.primitiveOffset = 0;
+    rangeInfo.transformOffset = 0;
+
+    // check worst case memory need
+    VkAccelerationStructureBuildGeometryInfoKHR buildInfo{
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR
+    };
+    buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    buildInfo.geometryCount = 1;
+    buildInfo.pGeometries = &geometry;
+    buildInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+    buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+    buildInfo.srcAccelerationStructure = VK_NULL_HANDLE;
+    // dstaccelerationStructure and scratchData will be set once created
+
+    VkAccelerationStructureBuildSizesInfoKHR sizeInfo {
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR
+    };
+
+
+
+    ExtFun::vkGetAccelerationStructureBuildSizesKHR(
+                device,
+                VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+                &buildInfo,
+                &rangeInfo.primitiveCount,
+                &sizeInfo);
+
+    createBuffer(sizeInfo.accelerationStructureSize,
+                 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
+                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                 blasBuffer, blasBufferMemory,
+                 VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+
+    VkAccelerationStructureCreateInfoKHR createInfo {
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR
+    };
+    createInfo.type = buildInfo.type;
+    createInfo.size = sizeInfo.accelerationStructureSize;
+    createInfo.buffer = blasBuffer;
+    createInfo.offset = 0;
+    if (ExtFun::vkCreateAccelerationStructureKHR(
+                device, &createInfo, nullptr, &blas) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create acceleration structure");
+    }
+
+    buildInfo.dstAccelerationStructure = blas;
+
+    createBuffer(sizeInfo.buildScratchSize,
+                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                scratchBuffer, scratchBufferMemory,
+                VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+
+    VkBufferDeviceAddressInfo addressInfo{};
+    addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    addressInfo.buffer = scratchBuffer;
+    const auto scratchAddress = ExtFun::vkGetBufferDeviceAddress(device, &addressInfo);
+
+    buildInfo.scratchData.deviceAddress = scratchAddress;
+
+    auto acc_buffer = beginSingleTimeCommands();
+    VkAccelerationStructureBuildRangeInfoKHR* pRangeInfo = &rangeInfo;
+    ExtFun::vkCmdBuildAccelerationStructuresKHR(
+                device, // for our wrapper only
+                acc_buffer, // command buffer
+                1, // number of acc structures
+                &buildInfo, // array of BuildGeometryInfoKHR
+                &pRangeInfo); // arr of RangeInfoKHR objects
+}
+
+void RayTracerApp::createRTVertexBuffer() {
+  VkDeviceSize bufferSize = sizeof(ray_model.vertices[0]) * ray_model.vertices.size();
+
+  VkBuffer stagingBuffer;
+  VkDeviceMemory stagingBufferMemory;
+  createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+               stagingBuffer, stagingBufferMemory);
+
+  void *data;
+  vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+  memcpy(data, ray_model.vertices.data(), (size_t)bufferSize);
+  // no need to wait for cache flush because
+  // VK_MEMORY_PROPERTY_HOST_COHERENT_BIT was
+  // specified
+  vkUnmapMemory(device, stagingBufferMemory);
+
+  // memory transfer is async
+  // but the standard guarantees that it will be
+  // complete by the next call to vkQueueSubmit
+  //
+  createBuffer(
+      bufferSize,
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexRTBuffer, vertexRTBufferMemory);
+  copyBuffer(stagingBuffer, vertexRTBuffer, bufferSize);
+
+  VkBufferDeviceAddressInfo addressInfo{};
+  addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+  addressInfo.buffer = vertexRTBuffer;
+  vertexRTBufferAddress = ExtFun::vkGetBufferDeviceAddress(device, &addressInfo);
+
+  vkDestroyBuffer(device, stagingBuffer, nullptr);
+  vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+
 
 // swapchain
 void RayTracerApp::createSwapChain() {
-  SwapChainSupportDetails swapChainSupport =
-      querySwapChainSupport(physicalDevice);
+SwapChainSupportDetails swapChainSupport =
+querySwapChainSupport(physicalDevice);
 
-  VkSurfaceFormatKHR surfaceFormat =
-      chooseSwapSurfaceFormat(swapChainSupport.formats);
-  VkPresentModeKHR presentMode =
-      chooseSwapPresentMode(swapChainSupport.presentModes);
-  VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
+VkSurfaceFormatKHR surfaceFormat =
+chooseSwapSurfaceFormat(swapChainSupport.formats);
+VkPresentModeKHR presentMode =
+chooseSwapPresentMode(swapChainSupport.presentModes);
+VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
 
-  uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
+uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
 
-  if (swapChainSupport.capabilities.maxImageCount > 0 &&
-      imageCount > swapChainSupport.capabilities.maxImageCount) {
-    imageCount = swapChainSupport.capabilities.maxImageCount;
-  }
+if (swapChainSupport.capabilities.maxImageCount > 0 &&
+imageCount > swapChainSupport.capabilities.maxImageCount) {
+imageCount = swapChainSupport.capabilities.maxImageCount;
+}
 
-  VkSwapchainCreateInfoKHR createInfo{};
-  createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-  createInfo.surface = surface;
+VkSwapchainCreateInfoKHR createInfo{};
+createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+createInfo.surface = surface;
 
-  createInfo.minImageCount = imageCount;
-  createInfo.imageFormat = surfaceFormat.format;
-  createInfo.imageColorSpace = surfaceFormat.colorSpace;
-  createInfo.imageExtent = extent;
-  createInfo.imageArrayLayers = 1;
-  createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+createInfo.minImageCount = imageCount;
+createInfo.imageFormat = surfaceFormat.format;
+createInfo.imageColorSpace = surfaceFormat.colorSpace;
+createInfo.imageExtent = extent;
+createInfo.imageArrayLayers = 1;
+createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-  QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
-  uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(),
-                                   indices.presentFamily.value()};
+QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(),
+               indices.presentFamily.value()};
 
-  if (indices.graphicsFamily != indices.presentFamily) {
-    createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-    createInfo.queueFamilyIndexCount = 2;
-    createInfo.pQueueFamilyIndices = queueFamilyIndices;
-  } else {
-    createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    createInfo.queueFamilyIndexCount = 0; // optional
-    createInfo.pQueueFamilyIndices = nullptr;
-  }
+if (indices.graphicsFamily != indices.presentFamily) {
+createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+createInfo.queueFamilyIndexCount = 2;
+createInfo.pQueueFamilyIndices = queueFamilyIndices;
+} else {
+createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+createInfo.queueFamilyIndexCount = 0; // optional
+createInfo.pQueueFamilyIndices = nullptr;
+}
 
-  createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
+createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
 
-  createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 
-  createInfo.presentMode = presentMode;
+createInfo.presentMode = presentMode;
   createInfo.clipped = VK_TRUE;
   createInfo.oldSwapchain = VK_NULL_HANDLE;
 
@@ -992,7 +1156,8 @@ void RayTracerApp::createSurface() {
 void RayTracerApp::createBuffer(
                   VkDeviceSize size, VkBufferUsageFlags usage,
                   VkMemoryPropertyFlags properties, VkBuffer &buffer,
-                  VkDeviceMemory &bufferMemory) {
+                  VkDeviceMemory &bufferMemory,
+        VkMemoryAllocateFlags flags) {
 
   VkBufferCreateInfo bufferInfo{};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -1012,6 +1177,17 @@ void RayTracerApp::createBuffer(
   allocInfo.allocationSize = memRequirements.size;
   allocInfo.memoryTypeIndex = findMemoryType(
       memRequirements.memoryTypeBits, properties);
+
+  VkMemoryAllocateFlagsInfo allocFlags {
+    VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO
+  };
+  allocFlags.flags = flags;
+
+  if(flags != VK_MEMORY_ALLOCATE_FLAG_BITS_MAX_ENUM) {
+      allocInfo.pNext = &allocFlags;
+  } else {
+      allocInfo.pNext = nullptr;
+  }
 
   if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) !=
       VK_SUCCESS) {

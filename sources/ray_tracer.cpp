@@ -25,9 +25,16 @@ void RayTracerApp::initVulkan() {
   createTextureImage();
   createTextureImageView();
   createTextureSampler();
+
   loadModel(tutorial_model);
   createVertexBuffer();
   createIndexBuffer();
+
+  loadRTGeometry(ray_model, std::string(MODEL_PATH));
+  createRTVertexBuffer();
+  createRTIndexBuffer();
+  createRTAccelerationStructure();
+
   createUniformBuffers();
   createDescriptorPool();
   createDescriptorSets();
@@ -167,13 +174,13 @@ void RayTracerApp::setupDebugMessenger() {
 void RayTracerApp::mainLoop() {
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
-    drawFrame();
+    drawRasterFrame();
   }
 
   vkDeviceWaitIdle(device);
 }
 
-void RayTracerApp::drawFrame() {
+void RayTracerApp::drawRasterFrame() {
   vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE,
                   UINT64_MAX);
   // 1. acquire and image from the swapchain
@@ -302,6 +309,23 @@ void RayTracerApp::cleanup() {
 
   vkDestroyBuffer(device, vertexBuffer, nullptr);
   vkFreeMemory(device, vertexBufferMemory, nullptr);
+
+  vkDestroyBuffer(device, vertexRTBuffer, nullptr);
+  vkFreeMemory(device, vertexRTBufferMemory, nullptr);
+
+  vkDestroyBuffer(device, scratchBuffer, nullptr);
+  vkFreeMemory(device, scratchBufferMemory, nullptr);
+
+  vkDestroyBuffer(device, indexRTBuffer, nullptr);
+  vkFreeMemory(device, indexRTBufferMemory, nullptr);
+
+  vkDestroyBuffer(device, blasBuffer, nullptr);
+  vkFreeMemory(device, blasBufferMemory, nullptr);
+
+  ExtFun::vkDestroyAccelerationStructureKHR(device, blas, nullptr);
+
+  VkBuffer scratchBuffer;
+  VkDeviceMemory scratchBufferMemory;
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
