@@ -14,7 +14,7 @@ void RayTracerApp::createVulkanInstance() {
   appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
   appInfo.pEngineName = "No Engine";
   appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  appInfo.apiVersion = VK_API_VERSION_1_0;
+  appInfo.apiVersion = VK_API_VERSION_1_2;
 
   VkInstanceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -106,17 +106,12 @@ void RayTracerApp::createLogicalDevice() {
     queueCreateInfos.push_back(queueCreateInfo);
   }
 
-  VkPhysicalDeviceFeatures deviceFeatures{};
-  deviceFeatures.samplerAnisotropy = VK_TRUE;
-
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
   createInfo.queueCreateInfoCount =
       static_cast<uint32_t>(queueCreateInfos.size());
   createInfo.pQueueCreateInfos = queueCreateInfos.data();
-
-  createInfo.pEnabledFeatures = &deviceFeatures;
 
   // extensions
   std::vector<const char *> allExtensions;
@@ -146,6 +141,8 @@ void RayTracerApp::createLogicalDevice() {
   vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
 
   vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
+
+  vkGetDeviceQueue(device, indices.computeFamily.value(), 0, &computeQueue);
 }
 
 // create asset objects
@@ -166,7 +163,8 @@ void RayTracerApp::createTextureImage() {
 
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
-  createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+  createBuffer(imageSize,
+               VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                stagingBuffer, stagingBufferMemory);
@@ -420,7 +418,8 @@ void RayTracerApp::createRTIndexBuffer() {
   createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingBufferMemory);
+               stagingBuffer, stagingBufferMemory,
+               VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT );
 
   void *data;
   vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
@@ -429,8 +428,12 @@ void RayTracerApp::createRTIndexBuffer() {
 
   createBuffer(
       bufferSize,
-      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexRTBuffer, indexRTBufferMemory);
+      VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+               VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+               VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+              VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexRTBuffer, indexRTBufferMemory,
+              VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
 
   copyBuffer(stagingBuffer, indexRTBuffer, bufferSize);
 
@@ -476,7 +479,7 @@ void RayTracerApp::createVertexBuffer() {
   vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
-void RayTracerApp::createRTAccelerationStructure() {
+void RayTracerApp::createRT_BLAS() {
     VkAccelerationStructureGeometryTrianglesDataKHR triangles {
         VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR };
     triangles.vertexFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
@@ -549,17 +552,17 @@ void RayTracerApp::createRTAccelerationStructure() {
                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                scratchBuffer, scratchBufferMemory,
+                blasScratchBuffer, blasScratchBufferMemory,
                 VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
 
     VkBufferDeviceAddressInfo addressInfo{};
     addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    addressInfo.buffer = scratchBuffer;
-    const auto scratchAddress = ExtFun::vkGetBufferDeviceAddress(device, &addressInfo);
+    addressInfo.buffer = blasScratchBuffer;
+    VkDeviceAddress scratchAddress = ExtFun::vkGetBufferDeviceAddress(device, &addressInfo);
 
     buildInfo.scratchData.deviceAddress = scratchAddress;
 
-    auto acc_buffer = beginSingleTimeCommands();
+    VkCommandBuffer acc_buffer = beginSingleTimeCommands(computeCommandPool);
     VkAccelerationStructureBuildRangeInfoKHR* pRangeInfo = &rangeInfo;
     ExtFun::vkCmdBuildAccelerationStructuresKHR(
                 device, // for our wrapper only
@@ -567,6 +570,156 @@ void RayTracerApp::createRTAccelerationStructure() {
                 1, // number of acc structures
                 &buildInfo, // array of BuildGeometryInfoKHR
                 &pRangeInfo); // arr of RangeInfoKHR objects
+    endSingleTimeCommands(computeCommandPool, acc_buffer, computeQueue);
+}
+void RayTracerApp::createRT_TLAS() {
+    VkAccelerationStructureDeviceAddressInfoKHR addressInfo {
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR };
+    addressInfo.accelerationStructure = blas;
+    VkDeviceAddress blasAddress {
+            ExtFun::vkGetAccelerationStructureDeviceAddressKHR(
+                device, &addressInfo) };
+    VkAccelerationStructureInstanceKHR instance{};
+    // 135 degree rotation around the y axis
+    const float rcpSqrt2 = sqrtf(0.5f);
+    instance.transform.matrix[0][0] = -rcpSqrt2;
+    instance.transform.matrix[0][2] = rcpSqrt2;
+    instance.transform.matrix[1][1] = 1.0f;
+    instance.transform.matrix[2][0] = -rcpSqrt2;
+    instance.transform.matrix[2][2] = -rcpSqrt2;
+
+    instance.instanceCustomIndex = 0; // arbitrary field that shaders can access
+    instance.mask = 0xFF; // ray can intersect an instance only if the bitwise and of
+                          // this mask and ray's mask is nonzero
+    instance.instanceShaderBindingTableRecordOffset = 0; // aplied when looking for shaders
+                                                         // in the table
+    instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+    instance.accelerationStructureReference = blasAddress;
+
+    createBuffer(sizeof(instance), VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                 instancesBuffer, instancesBufferMemory,
+                 VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+
+    copyHtoDSync(sizeof(instance), &instance, instancesBuffer, instancesBufferMemory);
+
+    VkAccelerationStructureBuildRangeInfoKHR rangeInfo{};
+    rangeInfo.primitiveOffset = 0;
+    rangeInfo.primitiveCount = 1; // number of instances
+    rangeInfo.firstVertex = 0;
+    rangeInfo.transformOffset = 0;
+
+    VkAccelerationStructureGeometryInstancesDataKHR instancesVk {
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR
+    };
+    instancesVk.arrayOfPointers = VK_FALSE;
+
+    VkBufferDeviceAddressInfo insAddress{
+        VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO
+    };
+    insAddress.buffer = instancesBuffer;
+    instancesVk.data.deviceAddress = ExtFun::vkGetBufferDeviceAddress(
+                device, &insAddress);
+    VkAccelerationStructureGeometryKHR geometry {
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR
+    };
+    geometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+    geometry.geometry.instances = instancesVk;
+
+    VkAccelerationStructureBuildGeometryInfoKHR buildInfo {
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR
+    };
+    buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    buildInfo.geometryCount = 1;
+    buildInfo.pGeometries = &geometry;
+    buildInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+    buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+    buildInfo.srcAccelerationStructure = VK_NULL_HANDLE;
+
+    // query the worst case size
+    VkAccelerationStructureBuildSizesInfoKHR sizeInfo {
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
+    ExtFun::vkGetAccelerationStructureBuildSizesKHR(
+                device,
+                VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+                &buildInfo,
+                &rangeInfo.primitiveCount,
+                &sizeInfo);
+
+    // allocate a buffer for the acceleration structure
+    createBuffer(sizeInfo.accelerationStructureSize,
+                 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
+                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                 tlasBuffer, tlasBufferMemory,
+                 VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+
+
+    // create the acceleration structure object
+    VkAccelerationStructureCreateInfoKHR createInfo {
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR
+    };
+    createInfo.type = buildInfo.type;
+    createInfo.size = sizeInfo.accelerationStructureSize;
+    createInfo.buffer = tlasBuffer;
+    createInfo.offset = 0;
+
+    if (ExtFun::vkCreateAccelerationStructureKHR(
+                device, &createInfo, nullptr, &tlas)
+            != VK_SUCCESS) {
+        throw std::runtime_error("failed to create a TLAS");
+    }
+
+    buildInfo.dstAccelerationStructure = tlas;
+    createBuffer(
+                sizeInfo.buildScratchSize,
+                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                tlasScratchBuffer, tlasScratchBufferMemory,
+                VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+
+    VkBufferDeviceAddressInfo scrInfo{
+        VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO
+    };
+    scrInfo.buffer = tlasScratchBuffer;
+    buildInfo.scratchData.deviceAddress =
+            ExtFun::vkGetBufferDeviceAddress(device, &scrInfo);
+
+    // create a one-element array of pointers to range info objects
+    VkCommandBuffer acc_buffer = beginSingleTimeCommands(computeCommandPool);
+    VkAccelerationStructureBuildRangeInfoKHR* pRangeInfo = &rangeInfo;
+
+    ExtFun::vkCmdBuildAccelerationStructuresKHR(
+                device, // for our wrapper only
+                acc_buffer, // command buffer
+                1, // number of acc structures
+                &buildInfo, // array of BuildGeometryInfoKHR
+                &pRangeInfo); // arr of RangeInfoKHR objects
+    endSingleTimeCommands(computeCommandPool, acc_buffer, computeQueue);
+}
+
+void RayTracerApp::copyHtoDSync(VkDeviceSize bufferSize, void* trData,
+                            VkBuffer dBuffer, VkDeviceMemory bufferMemory) {
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 stagingBuffer, stagingBufferMemory);
+
+    void *data;
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, trData, (size_t)bufferSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+
+    copyBuffer(stagingBuffer, dBuffer, bufferSize);
+
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
 void RayTracerApp::createRTVertexBuffer() {
@@ -577,7 +730,8 @@ void RayTracerApp::createRTVertexBuffer() {
   createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingBufferMemory);
+               stagingBuffer, stagingBufferMemory,
+               VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
 
   void *data;
   vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
@@ -593,8 +747,12 @@ void RayTracerApp::createRTVertexBuffer() {
   //
   createBuffer(
       bufferSize,
-      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexRTBuffer, vertexRTBufferMemory);
+          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+               VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+               VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+              VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexRTBuffer, vertexRTBufferMemory,
+              VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
   copyBuffer(stagingBuffer, vertexRTBuffer, bufferSize);
 
   VkBufferDeviceAddressInfo addressInfo{};
@@ -694,7 +852,6 @@ void RayTracerApp::recreateSwapChain() {
   createDescriptorSets();
   createCommandBuffers();
 }
-
 void RayTracerApp::createSyncObjects() {
   imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
   renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
@@ -741,7 +898,7 @@ void RayTracerApp::createCommandBuffers() {
 
   VkCommandBufferAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocInfo.commandPool = commandPool;
+  allocInfo.commandPool = graphicsCommandPool;
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
 
@@ -807,7 +964,7 @@ void RayTracerApp::createCommandBuffers() {
     }
   }
 }
-void RayTracerApp::createCommandPool() {
+void RayTracerApp::createCommandPools() {
   QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
 
   VkCommandPoolCreateInfo poolInfo{};
@@ -818,7 +975,19 @@ void RayTracerApp::createCommandPool() {
   // if multithreaded then probably
   // here flags for handling command buffer
   // allocation behavior
-  if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) !=
+  if (vkCreateCommandPool(device, &poolInfo, nullptr, &graphicsCommandPool) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create command pool");
+  }
+
+  poolInfo.queueFamilyIndex = queueFamilyIndices.computeFamily.value();
+  if (vkCreateCommandPool(device, &poolInfo, nullptr, &computeCommandPool) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create command pool");
+  }
+
+  poolInfo.queueFamilyIndex = queueFamilyIndices.presentFamily.value();
+  if (vkCreateCommandPool(device, &poolInfo, nullptr, &presentCommandPool) !=
       VK_SUCCESS) {
     throw std::runtime_error("failed to create command pool");
   }

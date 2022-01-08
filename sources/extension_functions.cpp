@@ -126,4 +126,17 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyAccelerationStructureKHR(
   }
 }
 
+VKAPI_ATTR VkDeviceAddress VKAPI_CALL vkGetAccelerationStructureDeviceAddressKHR(
+    VkDevice                                    device,
+        const VkAccelerationStructureDeviceAddressInfoKHR* pInfo) {
+  auto func = (PFN_vkGetAccelerationStructureDeviceAddressKHR)vkGetDeviceProcAddr(device,
+                                                "vkGetAccelerationStructureDeviceAddressKHR");
+  if (func != nullptr) {
+    return func(device,
+                pInfo);
+  }
+
+  return VkDeviceAddress(nullptr);
+}
+
 } // namespace ExtFun

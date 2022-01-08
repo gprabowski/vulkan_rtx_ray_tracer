@@ -60,10 +60,13 @@ struct SwapChainSupportDetails {
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphicsFamily;
+  std::optional<uint32_t> computeFamily;
   std::optional<uint32_t> presentFamily;
 
   bool isComplete() {
-    return graphicsFamily.has_value() && presentFamily.has_value();
+    return graphicsFamily.has_value() &&
+            presentFamily.has_value() &&
+            computeFamily.has_value();
   }
 };
 
@@ -84,6 +87,7 @@ struct RayTracerApp {
   VkPhysicalDevice physicalDevice;
   VkDevice device;
   VkQueue graphicsQueue;
+  VkQueue computeQueue;
   VkQueue presentQueue;
   std::vector<VkCommandBuffer> commandBuffers;
 
@@ -101,7 +105,9 @@ struct RayTracerApp {
   VkExtent2D swapChainExtent;
   std::vector<VkImageView> swapChainImageViews;
   std::vector<VkFramebuffer> swapChainFramebuffers;
-  VkCommandPool commandPool;
+  VkCommandPool graphicsCommandPool;
+  VkCommandPool presentCommandPool;
+  VkCommandPool computeCommandPool;
   // semaphores for signaling that an mage has been acquired and
   // is ready for rendering
   std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -130,14 +136,24 @@ struct RayTracerApp {
   VkBuffer blasBuffer;
   VkDeviceMemory blasBufferMemory;
 
-  VkBuffer scratchBuffer;
-  VkDeviceMemory scratchBufferMemory;
+  VkBuffer tlasBuffer;
+  VkDeviceMemory tlasBufferMemory;
+
+  VkBuffer tlasScratchBuffer;
+  VkDeviceMemory tlasScratchBufferMemory;
+
+  VkBuffer blasScratchBuffer;
+  VkDeviceMemory blasScratchBufferMemory;
 
   VkAccelerationStructureKHR blas;
+  VkAccelerationStructureKHR tlas;
 
+  VkBuffer instancesBuffer;
+  VkDeviceMemory instancesBufferMemory;
 
   VkDeviceAddress vertexRTBufferAddress;
   VkDeviceAddress indexRTBufferAddress;
+
 
   std::vector<VkBuffer> uniformBuffers;
   std::vector<VkDeviceMemory> uniformBuffersMemory;
@@ -190,13 +206,15 @@ struct RayTracerApp {
 
   void createRTIndexBuffer();
   void createRTVertexBuffer();
-  void createRTAccelerationStructure();
+  void createRT_BLAS();
+  void createRT_TLAS();
 
   void recreateSwapChain();
   void createDescriptorSets();
   void createSyncObjects();
+  void createEndBufferFence();
   void createCommandBuffers();
-  void createCommandPool();
+  void createCommandPools();
   void createFramebuffers();
   void createRenderPass();
   VkShaderModule createShaderModule(const std::vector<char> &code);
@@ -238,11 +256,19 @@ struct RayTracerApp {
   bool checkValidationLayerSupport();
 
   // vulkan utils
-  VkCommandBuffer beginSingleTimeCommands();
-  void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+  VkCommandBuffer beginSingleTimeCommands(VkCommandPool commandPool);
+  void endSingleTimeCommands(VkCommandPool commandPool, VkCommandBuffer commandBuffer, VkQueue queue);
   uint32_t findMemoryType(uint32_t typeFilter,
                           VkMemoryPropertyFlags properties);
+
   void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
+  void copyBufferSync(
+                  VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
+  void copyHtoDSync(VkDeviceSize bufferSize, void* trData,
+                            VkBuffer dBuffer, VkDeviceMemory bufferMemory);
+
   void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
                     VkMemoryPropertyFlags properties, VkBuffer &buffer,
                     VkDeviceMemory &bufferMemory,

@@ -19,7 +19,7 @@ void RayTracerApp::initVulkan() {
   createRenderPass();
   createDescriptorSetLayout();
   createGraphicsPipeline();
-  createCommandPool();
+  createCommandPools();
   createDepthResources();
   createFramebuffers();
   createTextureImage();
@@ -33,13 +33,15 @@ void RayTracerApp::initVulkan() {
   loadRTGeometry(ray_model, std::string(MODEL_PATH));
   createRTVertexBuffer();
   createRTIndexBuffer();
-  createRTAccelerationStructure();
 
   createUniformBuffers();
   createDescriptorPool();
   createDescriptorSets();
   createCommandBuffers();
   createSyncObjects();
+
+  createRT_BLAS();
+  // createRT_TLAS();
 }
 
 bool RayTracerApp::hasStencilComponent(VkFormat format) {
@@ -111,6 +113,10 @@ QueueFamilyIndices RayTracerApp::findQueueFamilies(VkPhysicalDevice device) {
   for (const auto &queueFamily : queueFamilies) {
     if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
       indices.graphicsFamily = i;
+    }
+
+    if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
+      indices.computeFamily = i;
     }
 
     VkBool32 presentSupport = false;
@@ -270,7 +276,7 @@ void RayTracerApp::cleanupSwapChain() {
     vkDestroyFramebuffer(device, framebuffer, nullptr);
   }
 
-  vkFreeCommandBuffers(device, commandPool,
+  vkFreeCommandBuffers(device, graphicsCommandPool,
                        static_cast<uint32_t>(commandBuffers.size()),
                        commandBuffers.data());
 
@@ -313,8 +319,8 @@ void RayTracerApp::cleanup() {
   vkDestroyBuffer(device, vertexRTBuffer, nullptr);
   vkFreeMemory(device, vertexRTBufferMemory, nullptr);
 
-  vkDestroyBuffer(device, scratchBuffer, nullptr);
-  vkFreeMemory(device, scratchBufferMemory, nullptr);
+  vkDestroyBuffer(device, blasScratchBuffer, nullptr);
+  vkFreeMemory(device, blasScratchBufferMemory, nullptr);
 
   vkDestroyBuffer(device, indexRTBuffer, nullptr);
   vkFreeMemory(device, indexRTBufferMemory, nullptr);
@@ -333,7 +339,9 @@ void RayTracerApp::cleanup() {
     vkDestroyFence(device, inFlightFences[i], nullptr);
   }
 
-  vkDestroyCommandPool(device, commandPool, nullptr);
+  vkDestroyCommandPool(device, graphicsCommandPool, nullptr);
+  vkDestroyCommandPool(device, computeCommandPool, nullptr);
+  vkDestroyCommandPool(device, presentCommandPool, nullptr);
 
   // logical device
   vkDestroyDevice(device, nullptr);
@@ -370,7 +378,9 @@ RayTracerApp::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeveri
               VkDebugUtilsMessageTypeFlagsEXT messageType,
               const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
               void *pUserData) {
+  std::cerr << std::endl << std::endl;
   std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+  std::cerr << std::endl << std::endl;
 
   return VK_FALSE;
 }

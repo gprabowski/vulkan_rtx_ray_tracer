@@ -149,7 +149,7 @@ void RayTracerApp::generateMipmaps(VkImage image, VkFormat imageFormat, int32_t 
                              "linear blitting!");
   }
 
-  VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+  VkCommandBuffer commandBuffer = beginSingleTimeCommands(graphicsCommandPool);
 
   VkImageMemoryBarrier barrier{};
   barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -220,13 +220,13 @@ void RayTracerApp::generateMipmaps(VkImage image, VkFormat imageFormat, int32_t 
                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0,
                        nullptr, 1, &barrier);
 
-  endSingleTimeCommands(commandBuffer);
+  endSingleTimeCommands(graphicsCommandPool, commandBuffer, graphicsQueue);
 }
 
 void RayTracerApp::transitionImageLayout(VkImage image, VkFormat format,
                            VkImageLayout oldLayout, VkImageLayout newLayout,
                            uint32_t mipLevels) {
-  VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+  VkCommandBuffer commandBuffer = beginSingleTimeCommands(graphicsCommandPool);
 
   VkImageMemoryBarrier barrier{};
   barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -298,12 +298,12 @@ void RayTracerApp::transitionImageLayout(VkImage image, VkFormat format,
       0, nullptr,       // buffer memory barriers
       1, &barrier);     // image memory barriers
 
-  endSingleTimeCommands(commandBuffer);
+  endSingleTimeCommands(graphicsCommandPool, commandBuffer, graphicsQueue);
 }
 
 void RayTracerApp::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
                        uint32_t height) {
-  VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+  VkCommandBuffer commandBuffer = beginSingleTimeCommands(graphicsCommandPool);
   // which part of buffer will be copied to which part of image
   VkBufferImageCopy region{};
   region.bufferOffset = 0;
@@ -323,6 +323,6 @@ void RayTracerApp::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t wi
   vkCmdCopyBufferToImage(commandBuffer, buffer, image,
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-  endSingleTimeCommands(commandBuffer);
+  endSingleTimeCommands(graphicsCommandPool, commandBuffer, graphicsQueue);
 }
 
