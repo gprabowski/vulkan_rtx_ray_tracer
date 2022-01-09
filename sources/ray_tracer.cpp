@@ -111,13 +111,11 @@ QueueFamilyIndices RayTracerApp::findQueueFamilies(VkPhysicalDevice device) {
 
   int i = 0;
   for (const auto &queueFamily : queueFamilies) {
-    if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-      indices.graphicsFamily = i;
+      if (queueFamily.queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT) ) {
+        indices.graphicsFamily = i;
+        indices.computeFamily = i;
     }
 
-    if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
-      indices.computeFamily = i;
-    }
 
     VkBool32 presentSupport = false;
     vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
@@ -132,6 +130,10 @@ QueueFamilyIndices RayTracerApp::findQueueFamilies(VkPhysicalDevice device) {
 
     ++i;
   }
+
+  if (!indices.isComplete())
+      throw std::runtime_error("queue families not found");
+
   return indices;
 }
 
