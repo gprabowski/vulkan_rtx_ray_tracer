@@ -1,6 +1,6 @@
 #include "ray_tracer.h"
 
-void RayTracerApp::loadModel(model &m)
+void RayTracerApp::loadModel(Model &m)
 {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
@@ -13,7 +13,7 @@ void RayTracerApp::loadModel(model &m)
     }
 
     std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
+    m.materials = materials;
     for (const auto &shape : shapes)
     {
         for (const auto &index : shape.mesh.indices)
@@ -38,10 +38,11 @@ void RayTracerApp::loadModel(model &m)
 
             m.indices.push_back(uniqueVertices[vertex]);
         }
+        // TODO: something like m.materials_indices.push_back(vertex.)
     }
 }
 
-void RayTracerApp::loadRTGeometry(rt_model &m, std::string path)
+void RayTracerApp::loadRTGeometry(Rt_model &m, std::string path)
 {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;

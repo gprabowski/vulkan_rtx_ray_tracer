@@ -27,7 +27,7 @@ void RayTracerApp::initVulkan()
     createTextureImageView();
     createTextureSampler();
 
-    loadModel(tutorial_model);
+    loadModel(model);
     createVertexBuffer();
     createIndexBuffer();
 

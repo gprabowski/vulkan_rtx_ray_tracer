@@ -69,13 +69,15 @@ struct QueueFamilyIndices
     bool isComplete() { return graphicsFamily.has_value() && presentFamily.has_value() && computeFamily.has_value(); }
 };
 
-struct model
+struct Model
 {
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
+    std::vector<tinyobj::material_t> materials;
+    std::vector<uint32_t> materials_indices;
 };
 
-struct rt_model
+struct Rt_model
 {
     std::vector<float> vertices;
     std::vector<uint32_t> indices;
@@ -89,6 +91,14 @@ struct Camera
     bool mouse_pressed = false;
     float last_mouse_x, last_mouse_y;
     float rotation_x = 0.0f, rotation_y = 0.0f;
+};
+
+struct Material
+{
+    alignas(16) float ambient[3];
+    alignas(16) float diffuse[3];
+    alignas(16) float specular[3];
+    alignas(16) float emission[3];
 };
 
 struct RayTracerApp
@@ -160,6 +170,12 @@ struct RayTracerApp
     VkBuffer blasScratchBuffer;
     VkDeviceMemory blasScratchBufferMemory;
 
+    VkBuffer materialIndexBuffer;
+    VkDeviceMemory materialIndexBufferMemory;
+
+    VkBuffer materialBuffer;
+    VkDeviceMemory materialBufferMemory;
+
     VkAccelerationStructureKHR blas;
     VkAccelerationStructureKHR tlas;
 
@@ -181,8 +197,8 @@ struct RayTracerApp
     VkImage depthImage;
     VkDeviceMemory depthImageMemory;
     VkImageView depthImageView;
-    model tutorial_model;
-    rt_model ray_model;
+    Model model;
+    Rt_model ray_model;
     Camera camera;
 
     // member functions
@@ -212,6 +228,7 @@ struct RayTracerApp
 
     void createIndexBuffer();
     void createVertexBuffer();
+    void createMaterialsBuffer();
 
     void createRTIndexBuffer();
     void createRTVertexBuffer();
@@ -277,8 +294,8 @@ struct RayTracerApp
                       VkMemoryAllocateFlags allocFlags = VK_MEMORY_ALLOCATE_FLAG_BITS_MAX_ENUM);
     // asset utils
     std::vector<char> readFile(const std::string &filename);
-    void loadModel(model &m);
-    void loadRTGeometry(rt_model &m, std::string path);
+    void loadModel(Model &m);
+    void loadRTGeometry(Rt_model &m, std::string path);
 };
 
 #endif  // ray_tracer_H

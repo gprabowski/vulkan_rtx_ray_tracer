@@ -394,7 +394,7 @@ void RayTracerApp::createDescriptorSets()
 
     for (size_t i = 0; i < swapChainImages.size(); ++i)
     {
-        std::array<VkWriteDescriptorSet, 6> descriptorWrites{};
+        std::array<VkWriteDescriptorSet, 8> descriptorWrites{};
 
         // uniform
         VkDescriptorBufferInfo bufferInfo{};
@@ -451,11 +451,11 @@ void RayTracerApp::createDescriptorSets()
         descriptorWrites[3].pImageInfo = &imageInfo;
         descriptorWrites[3].descriptorCount = 1;
 
-        // indices
-        VkDescriptorBufferInfo indexBufferInfo = {};
-        indexBufferInfo.buffer = indexRTBuffer;
-        indexBufferInfo.offset = 0;
-        indexBufferInfo.range = VK_WHOLE_SIZE;
+        // vertex indices
+        VkDescriptorBufferInfo vertexIndexBufferInfo = {};
+        vertexIndexBufferInfo.buffer = indexRTBuffer;
+        vertexIndexBufferInfo.offset = 0;
+        vertexIndexBufferInfo.range = VK_WHOLE_SIZE;
 
         descriptorWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptorWrites[4].dstSet = descriptorSets[i];
@@ -463,7 +463,7 @@ void RayTracerApp::createDescriptorSets()
         descriptorWrites[4].dstArrayElement = 0;
         descriptorWrites[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         descriptorWrites[4].descriptorCount = 1;
-        descriptorWrites[4].pBufferInfo = &indexBufferInfo;
+        descriptorWrites[4].pBufferInfo = &vertexIndexBufferInfo;
 
         // vertices
         VkDescriptorBufferInfo vertexBufferInfo = {};
@@ -479,6 +479,34 @@ void RayTracerApp::createDescriptorSets()
         descriptorWrites[5].descriptorCount = 1;
         descriptorWrites[5].pBufferInfo = &vertexBufferInfo;
 
+        // materials indices
+        VkDescriptorBufferInfo materialIndexBufferInfo = {};
+        materialIndexBufferInfo.buffer = materialIndexBuffer;
+        materialIndexBufferInfo.offset = 0;
+        materialIndexBufferInfo.range = VK_WHOLE_SIZE;
+
+        descriptorWrites[6].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[6].dstSet = descriptorSets[i];
+        descriptorWrites[6].dstBinding = 6;
+        descriptorWrites[6].dstArrayElement = 0;
+        descriptorWrites[6].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorWrites[6].descriptorCount = 1;
+        descriptorWrites[6].pBufferInfo = &vertexIndexBufferInfo;
+
+        // vertices
+        VkDescriptorBufferInfo materialBufferInfo = {};
+        materialBufferInfo.buffer = materialBuffer;
+        materialBufferInfo.offset = 0;
+        materialBufferInfo.range = VK_WHOLE_SIZE;
+
+        descriptorWrites[7].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[7].dstSet = descriptorSets[i];
+        descriptorWrites[7].dstBinding = 7;
+        descriptorWrites[7].dstArrayElement = 0;
+        descriptorWrites[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorWrites[7].descriptorCount = 1;
+        descriptorWrites[7].pBufferInfo = &vertexBufferInfo;
+
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0,
                                nullptr);
     }
@@ -486,7 +514,7 @@ void RayTracerApp::createDescriptorSets()
 
 void RayTracerApp::createDescriptorSetLayout()
 {
-    std::array<VkDescriptorSetLayoutBinding, 6> bindings;
+    std::array<VkDescriptorSetLayoutBinding, 8> bindings;
 
     // NOTE: more stageFlags may be needed but vertex and fragment shader will be removed, VK_SHADER_STAGE_ALL in two
     // first is only for debug for now
@@ -515,7 +543,7 @@ void RayTracerApp::createDescriptorSetLayout()
     bindings[3].pImmutableSamplers = nullptr;
     bindings[3].stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
-    bindings[4].binding = 4;  // indices
+    bindings[4].binding = 4;  // vertex indices
     bindings[4].descriptorCount = 1;
     bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[4].pImmutableSamplers = nullptr;
@@ -526,6 +554,18 @@ void RayTracerApp::createDescriptorSetLayout()
     bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[5].pImmutableSamplers = nullptr;
     bindings[5].stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
+    bindings[6].binding = 6;  // material indices
+    bindings[6].descriptorCount = 1;
+    bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    bindings[6].pImmutableSamplers = nullptr;
+    bindings[6].stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+
+    bindings[7].binding = 7;  // materials
+    bindings[7].descriptorCount = 1;
+    bindings[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    bindings[7].pImmutableSamplers = nullptr;
+    bindings[7].stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -543,7 +583,7 @@ void RayTracerApp::createDescriptorSetLayout()
 // geometry layouts
 void RayTracerApp::createIndexBuffer()
 {
-    VkDeviceSize bufferSize = sizeof(tutorial_model.indices[0]) * tutorial_model.indices.size();
+    VkDeviceSize bufferSize = sizeof(model.indices[0]) * model.indices.size();
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -554,7 +594,7 @@ void RayTracerApp::createIndexBuffer()
 
     void *data;
     vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, tutorial_model.indices.data(), (size_t)bufferSize);
+    memcpy(data, model.indices.data(), (size_t)bufferSize);
     vkUnmapMemory(device, stagingBufferMemory);
 
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
@@ -579,13 +619,14 @@ void RayTracerApp::createRTIndexBuffer()
 
     void *data;
     vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, tutorial_model.indices.data(), (size_t)bufferSize);
+    memcpy(data, model.indices.data(), (size_t)bufferSize);
     vkUnmapMemory(device, stagingBufferMemory);
 
     createBuffer(
         bufferSize,
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-            VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexRTBuffer, indexRTBufferMemory, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
 
     copyBuffer(stagingBuffer, indexRTBuffer, bufferSize);
@@ -601,7 +642,7 @@ void RayTracerApp::createRTIndexBuffer()
 
 void RayTracerApp::createVertexBuffer()
 {
-    VkDeviceSize bufferSize = sizeof(tutorial_model.vertices[0]) * tutorial_model.vertices.size();
+    VkDeviceSize bufferSize = sizeof(model.vertices[0]) * model.vertices.size();
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -611,7 +652,7 @@ void RayTracerApp::createVertexBuffer()
 
     void *data;
     vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, tutorial_model.vertices.data(), (size_t)bufferSize);
+    memcpy(data, model.vertices.data(), (size_t)bufferSize);
     // no need to wait for cache flush because
     // VK_MEMORY_PROPERTY_HOST_COHERENT_BIT was
     // specified
@@ -627,6 +668,70 @@ void RayTracerApp::createVertexBuffer()
 
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+void RayTracerApp::createMaterialsBuffer()
+{
+    {
+        VkDeviceSize materialIndexBufferSize = sizeof(model.materials_indices[0]) * model.materials_indices.size();
+
+        VkBuffer materialIndexStagingBuffer;
+        VkDeviceMemory materialIndexStagingBufferMemory;
+
+        createBuffer(materialIndexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     materialIndexStagingBuffer, materialIndexStagingBufferMemory);
+
+        void *data;
+        vkMapMemory(device, materialIndexStagingBufferMemory, 0, materialIndexBufferSize, 0, &data);
+        memcpy(data, model.materials_indices.data(), (size_t)materialIndexBufferSize);
+        vkUnmapMemory(device, materialIndexStagingBufferMemory);
+
+        createBuffer(materialIndexBufferSize,
+                     VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialIndexBuffer, indexBufferMemory);
+
+        copyBuffer(materialIndexStagingBuffer, materialIndexBuffer, materialIndexBufferSize);
+
+        vkDestroyBuffer(device, materialIndexStagingBuffer, nullptr);
+        vkFreeMemory(device, materialIndexStagingBufferMemory, nullptr);
+    }
+
+    {
+        VkDeviceSize materialBufferSize = sizeof(Material) * model.materials.size();
+
+        std::vector<Material> materials(model.materials.size());
+        for (int i = 0; i < model.materials.size(); i++)
+        {
+            memcpy(materials[i].ambient, model.materials[i].ambient, sizeof(float) * 3);
+            memcpy(materials[i].diffuse, model.materials[i].diffuse, sizeof(float) * 3);
+            memcpy(materials[i].specular, model.materials[i].specular, sizeof(float) * 3);
+            memcpy(materials[i].emission, model.materials[i].emission, sizeof(float) * 3);
+        }
+
+        VkBuffer materialStagingBuffer;
+        VkDeviceMemory materialStagingBufferMemory;
+
+        createBuffer(materialBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, materialStagingBuffer,
+                     materialStagingBufferMemory);
+
+        void *data;
+        vkMapMemory(device, materialStagingBufferMemory, 0, materialBufferSize, 0, &data);
+        memcpy(data, materials.data(), (size_t)materialBufferSize);
+        vkUnmapMemory(device, materialStagingBufferMemory);
+
+        createBuffer(materialBufferSize,
+                     VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialBuffer, indexBufferMemory);
+
+        copyBuffer(materialStagingBuffer, materialBuffer, materialBufferSize);
+
+        vkDestroyBuffer(device, materialStagingBuffer, nullptr);
+        vkFreeMemory(device, materialStagingBufferMemory, nullptr);
+    }
 }
 
 void RayTracerApp::createRT_BLAS()
@@ -853,7 +958,7 @@ void RayTracerApp::createRTVertexBuffer()
     //
     createBuffer(bufferSize,
                  VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                      VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexRTBuffer, vertexRTBufferMemory,
                  VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
@@ -1065,7 +1170,7 @@ void RayTracerApp::createCommandBuffers()
         // 2. instanceCount
         // 3. firstVertex
         // 4. firstInstance
-        vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(tutorial_model.indices.size()), 1, 0, 0, 0);
+        vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(model.indices.size()), 1, 0, 0, 0);
         vkCmdEndRenderPass(commandBuffers[i]);
 
         if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS)
