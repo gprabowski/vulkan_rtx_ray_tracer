@@ -30,8 +30,6 @@ function(add_shader TARGET SHADER)
     target_sources(${TARGET} PRIVATE ${current-output-path})
 endfunction(add_shader)
 
-file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-
 include_directories(3rdparty/)
 include_directories(headers/)
 
@@ -44,3 +42,9 @@ add_shader(${PROJECT_NAME} shader.vert)
 add_shader(${PROJECT_NAME} shader.frag)
 
 target_link_libraries(${PROJECT_NAME} glfw Vulkan::Vulkan)
+
+add_custom_command(
+        TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+                ${CMAKE_CURRENT_SOURCE_DIR}/assets/
+                ${CMAKE_CURRENT_BINARY_DIR}/assets/)

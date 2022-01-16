@@ -8,10 +8,10 @@
 constexpr uint32_t WIDTH = 800;
 constexpr uint32_t HEIGHT = 600;
 
-constexpr std::string_view MODEL_PATH = "assets/models/viking_room.obj";
-constexpr std::string_view TEXTURE_PATH = "assets/textures/viking_room.png";
+constexpr std::string_view MODEL_PATH = "assets/models/windmill.obj";
+constexpr std::string_view TEXTURE_PATH = "assets/textures/windmill.png";
 
-constexpr std::string_view LOW_POLY_MODEL_PATH = "assets/models/low.obj";
+constexpr std::string_view LOW_POLY_MODEL_PATH = "assets/models/windmill.obj";
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
