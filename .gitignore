@@ -2,3 +2,5 @@
 spv
 VulkanTest
 compile_commands.json
+build
+*.user

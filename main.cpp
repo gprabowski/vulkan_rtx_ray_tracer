@@ -15,10 +15,10 @@
 #include <glm/gtx/hash.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
+#include "stb_image.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
+#include "tiny_obj_loader.h"
 
 #include <array>
 #include <chrono>
@@ -37,8 +37,8 @@
 constexpr uint32_t WIDTH = 800;
 constexpr uint32_t HEIGHT = 600;
 
-const std::string MODEL_PATH = "models/viking_room.obj";
-const std::string TEXTURE_PATH = "textures/viking_room.png";
+const std::string MODEL_PATH = "assets/models/viking_room.obj";
+const std::string TEXTURE_PATH = "assets/textures/viking_room.png";
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -1423,8 +1423,8 @@ private:
   }
 
   void createGraphicsPipeline() {
-    auto vertShaderCode = readFile("spv/vert.spv");
-    auto fragShaderCode = readFile("spv/frag.spv");
+    auto vertShaderCode = readFile("shaders/shader.vert.spv");
+    auto fragShaderCode = readFile("shaders/shader.frag.spv");
 
     std::cout << "size of vertex shader " << vertShaderCode.size() << std::endl;
     std::cout << "size of frag shader " << fragShaderCode.size() << std::endl;
