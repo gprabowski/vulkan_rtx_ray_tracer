@@ -146,16 +146,20 @@ QueueFamilyIndices RayTracerApp::findQueueFamilies(VkPhysicalDevice device)
 void RayTracerApp::updateUniformBuffers(uint32_t currentImage)
 {
     // using push constants would be faster
-    static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+    // static auto startTime = std::chrono::high_resolution_clock::now();
+    // auto currentTime = std::chrono::high_resolution_clock::now();
+    // float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(10.0f), glm::vec3(0.0f, 0.0f, 1.0f)) *
-                glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)) *
+    ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f)) *
                 glm::scale(glm::mat4(1.0f), glm::vec3(0.3, 0.3, 0.3));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::mat4(1);
+    ubo.view = glm::rotate(ubo.view, camera.rotation_x, {1, 0, 0});
+    ubo.view = glm::rotate(ubo.view, camera.rotation_y, {0, 1, 0});
+    ubo.view = glm::translate(ubo.view, camera.pos);
+    camera.dir = glm::vec4(0, 0, 1, 0) * ubo.view;
+    camera.up = glm::vec4(0, 1, 0, 0) * ubo.view;
+    ubo.inv_view = glm::inverse(ubo.view);
     ubo.proj =
         glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
     // necessary as GLM was designed with openGL in mind
@@ -182,10 +186,27 @@ void RayTracerApp::setupDebugMessenger()
     }
 }
 
+void RayTracerApp::processInputEvents()
+{
+    if (glfwGetKey(window, GLFW_KEY_W))
+        camera.pos += camera.dir * 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_S))
+        camera.pos -= camera.dir * 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_D))
+        camera.pos += glm::normalize(glm::cross(camera.dir, camera.up)) * 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_A))
+        camera.pos -= glm::normalize(glm::cross(camera.dir, camera.up)) * 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_SPACE))
+        camera.pos -= glm::normalize(camera.up) * 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL))
+        camera.pos += glm::normalize(camera.up) * 0.1f;
+}
+
 void RayTracerApp::mainLoop()
 {
     while (!glfwWindowShouldClose(window))
     {
+        processInputEvents();
         glfwPollEvents();
         drawRasterFrame();
     }

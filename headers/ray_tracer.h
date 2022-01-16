@@ -49,6 +49,7 @@ struct UniformBufferObject
 {
     alignas(16) glm::mat4 model;
     alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 inv_view;
     alignas(16) glm::mat4 proj;
 };
 
@@ -78,6 +79,16 @@ struct rt_model
 {
     std::vector<float> vertices;
     std::vector<uint32_t> indices;
+};
+
+struct Camera
+{
+    glm::vec3 pos = {0.0f, -2.0f, -5.0f};
+    glm::vec3 dir = {0.0f, 0.0f, 1.0f};
+    glm::vec3 up = {0.0f, 1.0f, 0.0f};
+    bool mouse_pressed = false;
+    float last_mouse_x, last_mouse_y;
+    float rotation_x = 0.0f, rotation_y = 0.0f;
 };
 
 struct RayTracerApp
@@ -168,6 +179,7 @@ struct RayTracerApp
     VkImageView depthImageView;
     model tutorial_model;
     rt_model ray_model;
+    Camera camera;
 
     // member functions
     void run();
@@ -225,6 +237,7 @@ struct RayTracerApp
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
     void updateUniformBuffers(uint32_t currentImage);
     void setupDebugMessenger();
+    void processInputEvents();
     void mainLoop();
     void drawRasterFrame();
     void drawRTFrame();

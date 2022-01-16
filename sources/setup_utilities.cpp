@@ -1,5 +1,35 @@
 #include "ray_tracer.h"
 
+void mouseMoveCallback(GLFWwindow *w, double x, double y)
+{
+    RayTracerApp *app = static_cast<RayTracerApp *>(glfwGetWindowUserPointer(w));
+    auto &camera = app->camera;
+    if (camera.mouse_pressed)
+    {
+        camera.rotation_y -= (camera.last_mouse_x - x) / 1000.0f;
+        camera.rotation_x -= (camera.last_mouse_y - y) / 1000.0f;
+        if (camera.rotation_x > M_PI_2)
+            camera.rotation_x = M_PI_2;
+        if (camera.rotation_x < -M_PI_2)
+            camera.rotation_x = -M_PI_2;
+    }
+    camera.last_mouse_x = x;
+    camera.last_mouse_y = y;
+}
+
+void mousePressCallback(GLFWwindow *w, int button, int action, int mods)
+{
+    if (button == GLFW_MOUSE_BUTTON_LEFT)
+    {
+        RayTracerApp *app = static_cast<RayTracerApp *>(glfwGetWindowUserPointer(w));
+        auto &camera = app->camera;
+        if (action == GLFW_PRESS)
+            camera.mouse_pressed = true;
+        if (action == GLFW_RELEASE)
+            camera.mouse_pressed = false;
+    }
+}
+
 void framebufferResizeCallback(GLFWwindow *window, int width, int height)
 {
     auto app = reinterpret_cast<RayTracerApp *>(glfwGetWindowUserPointer(window));
@@ -17,6 +47,8 @@ void RayTracerApp::initWindow(void *userPtr)
     glfwSetWindowUserPointer(window, userPtr);
 
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+    glfwSetCursorPosCallback(window, mouseMoveCallback);
+    glfwSetMouseButtonCallback(window, mousePressCallback);
 }
 
 std::vector<const char *> RayTracerApp::getRequiredExtensions()
