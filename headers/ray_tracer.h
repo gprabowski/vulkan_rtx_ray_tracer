@@ -132,6 +132,10 @@ struct RayTracerApp
     size_t currentFrame = 0;
     bool framebufferResized = false;
 
+    std::vector<VkImageView> raytracedImagesViews;
+    std::vector<VkImage> raytracedImages;
+    std::vector<VkDeviceMemory> raytracedImagesMemory;
+
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
 
@@ -201,6 +205,7 @@ struct RayTracerApp
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
     void createTextureImageView();
     void createTextureSampler();
+    void createRayTracedImages();
     void createDescriptorPool();
     void createUniformBuffers();
     void createDescriptorSetLayout();

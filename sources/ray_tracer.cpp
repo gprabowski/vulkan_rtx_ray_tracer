@@ -35,14 +35,14 @@ void RayTracerApp::initVulkan()
     createRTVertexBuffer();
     createRTIndexBuffer();
 
+    createRT_BLAS();
+    createRT_TLAS();
+
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
     createCommandBuffers();
     createSyncObjects();
-
-    createRT_BLAS();
-    createRT_TLAS();
 }
 
 bool RayTracerApp::hasStencilComponent(VkFormat format)
@@ -60,7 +60,7 @@ VkSurfaceFormatKHR RayTracerApp::chooseSwapSurfaceFormat(const std::vector<VkSur
 {
     for (const auto &availableFormat : availableFormats)
     {
-        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
+        if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM &&
             availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
         {
             return availableFormat;
