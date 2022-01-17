@@ -38,7 +38,9 @@ void RayTracerApp::loadModel(Model &m)
 
             m.indices.push_back(uniqueVertices[vertex]);
         }
-        // TODO: something like m.materials_indices.push_back(vertex.)
+
+        for (const auto &material_idx : shape.mesh.material_ids)
+            m.materials_indices.push_back(material_idx);
     }
 }
 
