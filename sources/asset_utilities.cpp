@@ -2,15 +2,21 @@
 
 void RayTracerApp::loadModel(Model &m)
 {
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn, err;
-
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, std::string(MODEL_PATH).c_str()))
+    tinyobj::ObjReaderConfig config;
+    config.mtl_search_path = MODELS_FOLDER;
+    tinyobj::ObjReader reader;
+    if (!reader.ParseFromFile(std::string(MODEL_PATH), config))
     {
-        throw std::runtime_error(warn + err);
+        if (reader.Error().empty())
+        {
+            std::cerr << "OBJ READER: " << reader.Error();
+        }
+        exit(1);
     }
+
+    const auto &materials = reader.GetMaterials();
+    const auto &shapes = reader.GetShapes();
+    const auto &attrib = reader.GetAttrib();
 
     std::unordered_map<Vertex, uint32_t> uniqueVertices{};
     m.materials = materials;
@@ -26,9 +32,11 @@ void RayTracerApp::loadModel(Model &m)
             vertex.texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
                                // we have 0 at the top while obj 0 at
                                // the bottom
-                               1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
+                               attrib.texcoords[2 * index.texcoord_index + 1]};
 
-            vertex.color = {1.0f, 1.0f, 1.0f};
+            vertex.color = {attrib.colors[3 * index.vertex_index], attrib.colors[3 * index.vertex_index + 1],
+                            attrib.colors[3 * index.vertex_index + 2]};
+            // vertex.color = {1.0f, 1.0f, 1.0f};
 
             if (uniqueVertices.count(vertex) == 0)
             {
@@ -42,6 +50,7 @@ void RayTracerApp::loadModel(Model &m)
         for (const auto &material_idx : shape.mesh.material_ids)
             m.materials_indices.push_back(material_idx);
     }
+    return;
 }
 
 void RayTracerApp::loadRTGeometry(Rt_model &m, std::string path)

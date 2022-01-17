@@ -152,6 +152,9 @@ struct RayTracerApp
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
 
+    VkBuffer vertexRTDataBuffer;
+    VkDeviceMemory vertexRTDataBufferMemory;
+
     VkBuffer vertexRTBuffer;
     VkDeviceMemory vertexRTBufferMemory;
 
@@ -238,6 +241,7 @@ struct RayTracerApp
 
     void createRTIndexBuffer();
     void createRTVertexBuffer();
+    void createRTDataVertexBuffer();
     void createRT_BLAS();
     void createRT_TLAS();
 

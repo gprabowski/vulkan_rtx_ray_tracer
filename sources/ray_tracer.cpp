@@ -37,7 +37,9 @@ void RayTracerApp::initVulkan()
 
     loadRTGeometry(ray_model, std::string(LOW_POLY_MODEL_PATH));
     createRTVertexBuffer();
+    createRTDataVertexBuffer();
     createRTIndexBuffer();
+    createMaterialsBuffer();
 
     createRT_BLAS();
     createRT_TLAS();

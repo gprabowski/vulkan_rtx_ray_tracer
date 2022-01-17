@@ -471,7 +471,7 @@ void RayTracerApp::createDescriptorSets()
 
         // vertices
         VkDescriptorBufferInfo vertexBufferInfo = {};
-        vertexBufferInfo.buffer = vertexRTBuffer;
+        vertexBufferInfo.buffer = vertexRTDataBuffer;
         vertexBufferInfo.offset = 0;
         vertexBufferInfo.range = VK_WHOLE_SIZE;
 
@@ -495,9 +495,9 @@ void RayTracerApp::createDescriptorSets()
         descriptorWrites[6].dstArrayElement = 0;
         descriptorWrites[6].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         descriptorWrites[6].descriptorCount = 1;
-        descriptorWrites[6].pBufferInfo = &vertexIndexBufferInfo;
+        descriptorWrites[6].pBufferInfo = &materialIndexBufferInfo;
 
-        // vertices
+        // materials
         VkDescriptorBufferInfo materialBufferInfo = {};
         materialBufferInfo.buffer = materialBuffer;
         materialBufferInfo.offset = 0;
@@ -509,7 +509,7 @@ void RayTracerApp::createDescriptorSets()
         descriptorWrites[7].dstArrayElement = 0;
         descriptorWrites[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         descriptorWrites[7].descriptorCount = 1;
-        descriptorWrites[7].pBufferInfo = &vertexBufferInfo;
+        descriptorWrites[7].pBufferInfo = &materialBufferInfo;
 
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0,
                                nullptr);
@@ -539,37 +539,37 @@ void RayTracerApp::createDescriptorSetLayout()
     bindings[2].descriptorCount = 1;
     bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
     bindings[2].pImmutableSamplers = nullptr;
-    bindings[2].stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    bindings[2].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     bindings[3].binding = 3;  // raytraced image
     bindings[3].descriptorCount = 1;
     bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     bindings[3].pImmutableSamplers = nullptr;
-    bindings[3].stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    bindings[3].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     bindings[4].binding = 4;  // vertex indices
     bindings[4].descriptorCount = 1;
     bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[4].pImmutableSamplers = nullptr;
-    bindings[4].stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    bindings[4].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_RAYGEN_BIT_KHR;
 
     bindings[5].binding = 5;  // vertices
     bindings[5].descriptorCount = 1;
     bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[5].pImmutableSamplers = nullptr;
-    bindings[5].stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    bindings[5].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_RAYGEN_BIT_KHR;
 
     bindings[6].binding = 6;  // material indices
     bindings[6].descriptorCount = 1;
     bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[6].pImmutableSamplers = nullptr;
-    bindings[6].stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    bindings[6].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     bindings[7].binding = 7;  // materials
     bindings[7].descriptorCount = 1;
     bindings[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[7].pImmutableSamplers = nullptr;
-    bindings[7].stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    bindings[7].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -694,7 +694,8 @@ void RayTracerApp::createMaterialsBuffer()
         createBuffer(materialIndexBufferSize,
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialIndexBuffer, indexBufferMemory);
+                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialIndexBuffer, indexBufferMemory,
+                     VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
 
         copyBuffer(materialIndexStagingBuffer, materialIndexBuffer, materialIndexBufferSize);
 
@@ -729,7 +730,8 @@ void RayTracerApp::createMaterialsBuffer()
         createBuffer(materialBufferSize,
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialBuffer, indexBufferMemory);
+                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialBuffer, indexBufferMemory,
+                     VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
 
         copyBuffer(materialStagingBuffer, materialBuffer, materialBufferSize);
 
@@ -977,6 +979,32 @@ void RayTracerApp::createRTVertexBuffer()
     vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
+void RayTracerApp::createRTDataVertexBuffer()
+{
+    VkDeviceSize bufferSize = sizeof(model.vertices[0]) * model.vertices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
+                 stagingBufferMemory);
+
+    void *data;
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, model.vertices.data(), (size_t)bufferSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+
+    createBuffer(bufferSize,
+                 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexRTDataBuffer, vertexRTDataBufferMemory,
+                 VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+    copyBuffer(stagingBuffer, vertexRTDataBuffer, bufferSize);
+
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
 // swapchain
 void RayTracerApp::createSwapChain()
 {
@@ -1051,6 +1079,8 @@ void RayTracerApp::createSwapChain()
 }
 void RayTracerApp::recreateSwapChain()
 {
+    std::cout << "RECREATING SWAPCHAIN" << std::endl << std::endl;
+
     int width = 0, height = 0;
     glfwGetFramebufferSize(window, &width, &height);
     while (width == 0 || height == 0)
@@ -1068,7 +1098,6 @@ void RayTracerApp::recreateSwapChain()
 
     // createGraphicsPipeline();
     createRTPipeline();
-    createShaderBindingTable();
 
     createDepthResources();
     createFramebuffers();
@@ -1719,6 +1748,7 @@ void RayTracerApp::createRTPipeline()
 
 void RayTracerApp::createShaderBindingTable()
 {
+    std::cout << "Creating shader binding table" << std::endl;
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingProperties = {};
     rayTracingProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
 
@@ -1732,7 +1762,8 @@ void RayTracerApp::createShaderBindingTable()
 
     createBuffer(shaderBindingTableSize,
                  VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, shaderBindingTableBuffer, shaderBindingTableBufferMemory);
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, shaderBindingTableBuffer, shaderBindingTableBufferMemory,
+                 VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
 
     std::vector<uint8_t> shaderStorage(shaderBindingTableSize);
     if (ExtFun::vkGetRayTracingShaderGroupHandlesKHR(device, graphicsPipeline, 0, RTShadersCount,
@@ -1784,7 +1815,8 @@ void RayTracerApp::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkM
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
 
-    VkMemoryAllocateFlagsInfo allocFlags{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO};
+    VkMemoryAllocateFlagsInfo allocFlags{};
+    allocFlags.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
     allocFlags.flags = flags;
 
     if (flags != VK_MEMORY_ALLOCATE_FLAG_BITS_MAX_ENUM)
@@ -1798,9 +1830,7 @@ void RayTracerApp::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkM
 
     if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
     {
-        throw std::runtime_error(
-            "failed to callocate vertex buffer"
-            "memory!");
+        throw std::runtime_error("failed to callocate vertex buffer memory!");
     }
 
     // 4th param is memory offset
