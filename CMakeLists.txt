@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.15)
 
 set(PROJECT_NAME vulkan_rtx_ray_tracer)
 
@@ -21,7 +21,7 @@ function(add_shader TARGET SHADER)
 
     add_custom_command(
            OUTPUT ${current-output-path}
-           COMMAND ${GLSLC} -o ${current-output-path} ${current-shader-path}
+           COMMAND ${GLSLC} --target-env=vulkan1.2 -o ${current-output-path} ${current-shader-path}
            DEPENDS ${current-shader-path}
            IMPLICIT_DEPENDS CXX ${current-shader-path}
            VERBATIM)
@@ -50,9 +50,24 @@ set(SOURCES
     headers/vertex.h
 )
 
-add_executable(${PROJECT_NAME} ${SOURCES})
+set(SHADERS
+    shaders/shader.vert
+    shaders/shader.frag
+    shaders/raytrace.rgen
+    shaders/raytrace.rchit
+    shaders/raytrace.rmiss
+)
+
+source_group("shaders" FILES ${SHADERS})
+
+add_executable(${PROJECT_NAME} ${SOURCES} ${SHADERS})
+
+
 add_shader(${PROJECT_NAME} shader.vert)
 add_shader(${PROJECT_NAME} shader.frag)
+add_shader(${PROJECT_NAME} raytrace.rgen)
+add_shader(${PROJECT_NAME} raytrace.rchit)
+add_shader(${PROJECT_NAME} raytrace.rmiss)
 
 target_link_libraries(${PROJECT_NAME} glfw Vulkan::Vulkan)
 

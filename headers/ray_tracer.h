@@ -47,10 +47,10 @@ of its members rounded up to a multiple of 16
  */
 struct UniformBufferObject
 {
-    alignas(16) glm::mat4 model;
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 inv_view;
     alignas(16) glm::mat4 proj;
+    alignas(16) glm::mat4 inv_proj;
 };
 
 struct SwapChainSupportDetails
@@ -142,9 +142,12 @@ struct RayTracerApp
     size_t currentFrame = 0;
     bool framebufferResized = false;
 
-    std::vector<VkImageView> raytracedImagesViews;
-    std::vector<VkImage> raytracedImages;
-    std::vector<VkDeviceMemory> raytracedImagesMemory;
+    static constexpr int RTShadersCount = 3;
+
+    // unused, but may be useful if we will want to change architecture
+    // std::vector<VkImageView> raytracedImagesViews;
+    // std::vector<VkImage> raytracedImages;
+    // std::vector<VkDeviceMemory> raytracedImagesMemory;
 
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
@@ -175,6 +178,9 @@ struct RayTracerApp
 
     VkBuffer materialBuffer;
     VkDeviceMemory materialBufferMemory;
+
+    VkBuffer shaderBindingTableBuffer;
+    VkDeviceMemory shaderBindingTableBufferMemory;
 
     VkAccelerationStructureKHR blas;
     VkAccelerationStructureKHR tlas;
@@ -241,10 +247,13 @@ struct RayTracerApp
     void createEndBufferFence();
     void createCommandBuffers();
     void createCommandPools();
+    void createRTCommandBuffers();
     void createFramebuffers();
     void createRenderPass();
     VkShaderModule createShaderModule(const std::vector<char> &code);
     void createGraphicsPipeline();
+    void createRTPipeline();
+    void createShaderBindingTable();
     void createImageViews();
     void createSwapChain();
     void createSurface();

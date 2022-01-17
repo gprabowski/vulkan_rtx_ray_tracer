@@ -16,7 +16,7 @@ VKAPI_ATTR void VKAPI_CALL vkGetAccelerationStructureBuildSizesKHR(
     const VkAccelerationStructureBuildGeometryInfoKHR* pBuildInfo, const uint32_t* pMaxPrimitiveCounts,
     VkAccelerationStructureBuildSizesInfoKHR* pSizeInfo);
 
-VKAPI_ATTR void VKAPI_CALL vkCmdTraceRaysKHR(VkCommandBuffer commandBuffer,
+VKAPI_ATTR void VKAPI_CALL vkCmdTraceRaysKHR(VkDevice device, VkCommandBuffer commandBuffer,
                                              const VkStridedDeviceAddressRegionKHR* pRaygenShaderBindingTable,
                                              const VkStridedDeviceAddressRegionKHR* pMissShaderBindingTable,
                                              const VkStridedDeviceAddressRegionKHR* pHitShaderBindingTable,
@@ -41,6 +41,22 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyAccelerationStructureKHR(VkDevice device,
 
 VKAPI_ATTR VkDeviceAddress VKAPI_CALL
 vkGetAccelerationStructureDeviceAddressKHR(VkDevice device, const VkAccelerationStructureDeviceAddressInfoKHR* pInfo);
+
+VKAPI_ATTR VkDeviceAddress VKAPI_CALL
+vkGetAccelerationStructureDeviceAddressKHR(VkDevice device, const VkAccelerationStructureDeviceAddressInfoKHR* pInfo);
+
+VKAPI_ATTR VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOperationKHR deferredOperation,
+                                                              VkPipelineCache pipelineCache, uint32_t createInfoCount,
+                                                              const VkRayTracingPipelineCreateInfoKHR* pCreateInfos,
+                                                              const VkAllocationCallbacks* pAllocator,
+                                                              VkPipeline* pPipelines);
+
+VKAPI_ATTR VkResult VKAPI_CALL vkGetRayTracingShaderGroupHandlesKHR(VkDevice device, VkPipeline pipeline,
+                                                                    uint32_t firstGroup, uint32_t groupCount,
+                                                                    size_t dataSize, void* pData);
+
+VKAPI_ATTR VkDeviceAddress VKAPI_CALL vkGetBufferDeviceAddressKHR(VkDevice device,
+                                                                  const VkBufferDeviceAddressInfo* pInfo);
 
 }  // namespace ExtFun
 

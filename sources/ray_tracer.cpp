@@ -19,7 +19,11 @@ void RayTracerApp::initVulkan()
     createImageViews();
     createRenderPass();
     createDescriptorSetLayout();
-    createGraphicsPipeline();
+
+    // createGraphicsPipeline();
+    createRTPipeline();
+    createShaderBindingTable();
+
     createCommandPools();
     createDepthResources();
     createFramebuffers();
@@ -41,7 +45,10 @@ void RayTracerApp::initVulkan()
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
-    createCommandBuffers();
+
+    // createCommandBuffers();
+    createRTCommandBuffers();
+
     createSyncObjects();
 }
 
@@ -151,8 +158,8 @@ void RayTracerApp::updateUniformBuffers(uint32_t currentImage)
     // float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f)) *
-                glm::scale(glm::mat4(1.0f), glm::vec3(0.3, 0.3, 0.3));
+    // ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f)) *
+    //          glm::scale(glm::mat4(1.0f), glm::vec3(0.3, 0.3, 0.3));
     ubo.view = glm::mat4(1);
     ubo.view = glm::rotate(ubo.view, camera.rotation_x, {1, 0, 0});
     ubo.view = glm::rotate(ubo.view, camera.rotation_y, {0, 1, 0});
@@ -161,10 +168,11 @@ void RayTracerApp::updateUniformBuffers(uint32_t currentImage)
     camera.up = glm::vec4(0, 1, 0, 0) * ubo.view;
     ubo.inv_view = glm::inverse(ubo.view);
     ubo.proj =
-        glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+        glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 100.0f);
     // necessary as GLM was designed with openGL in mind
     // and Vulkan reverts the y coord
     ubo.proj[1][1] *= -1;
+    ubo.inv_proj = glm::inverse(ubo.proj);
 
     void *data;
     vkMapMemory(device, uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);

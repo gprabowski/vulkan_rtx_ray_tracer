@@ -116,4 +116,42 @@ vkGetAccelerationStructureDeviceAddressKHR(VkDevice device, const VkAcceleration
     return VkDeviceAddress(nullptr);
 }
 
+VkResult vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOperationKHR deferredOperation,
+                                        VkPipelineCache pipelineCache, uint32_t createInfoCount,
+                                        const VkRayTracingPipelineCreateInfoKHR* pCreateInfos,
+                                        const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)
+{
+    auto func = (PFN_vkCreateRayTracingPipelinesKHR)vkGetDeviceProcAddr(device, "vkCreateRayTracingPipelinesKHR");
+    if (func != nullptr)
+    {
+        return func(device, deferredOperation, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
+    }
+
+    return VK_SUCCESS;
+}
+
+VkResult vkGetRayTracingShaderGroupHandlesKHR(VkDevice device, VkPipeline pipeline, uint32_t firstGroup,
+                                              uint32_t groupCount, size_t dataSize, void* pData)
+{
+    auto func =
+        (PFN_vkGetRayTracingShaderGroupHandlesKHR)vkGetDeviceProcAddr(device, "vkGetRayTracingShaderGroupHandlesKHR");
+    if (func != nullptr)
+    {
+        return func(device, pipeline, firstGroup, groupCount, dataSize, pData);
+    }
+
+    return VK_SUCCESS;
+}
+
+VkDeviceAddress vkGetBufferDeviceAddressKHR(VkDevice device, const VkBufferDeviceAddressInfo* pInfo)
+{
+    auto func = (PFN_vkGetBufferDeviceAddressKHR)vkGetDeviceProcAddr(device, "vkGetBufferDeviceAddressKHR");
+    if (func != nullptr)
+    {
+        return func(device, pInfo);
+    }
+
+    return VkDeviceAddress(nullptr);
+}
+
 }  // namespace ExtFun
