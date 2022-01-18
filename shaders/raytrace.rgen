@@ -11,6 +11,7 @@ struct Material {
 layout(location = 0) rayPayloadEXT Payload {
 	//TODO
     vec3 hitValue;
+    int hitType;
 } payload;
 
 layout(binding = 0) uniform UniformBufferObject {
@@ -38,6 +39,7 @@ void main() {
     float tMin     = 0.001;
     float tMax     = 10000.0;
 
+    payload.hitType = 0;
     traceRayEXT(topLevelAS,     // acceleration structure
                 rayFlags,       // rayFlags
                 0xFF,           // cullMask

@@ -34,8 +34,8 @@ void RayTracerApp::loadModel(Model &m)
                                // the bottom
                                1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
 
-            vertex.color = {attrib.colors[3 * index.vertex_index], attrib.colors[3 * index.vertex_index + 1],
-                            attrib.colors[3 * index.vertex_index + 2]};
+            vertex.normal = {attrib.colors[3 * index.vertex_index], attrib.colors[3 * index.vertex_index + 1],
+                             attrib.colors[3 * index.vertex_index + 2]};
             // vertex.color = {1.0f, 1.0f, 1.0f};
 
             if (uniqueVertices.count(vertex) == 0)
@@ -81,7 +81,7 @@ void RayTracerApp::loadRTGeometry(Rt_model &m, std::string path)
                                // the bottom
                                1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
 
-            vertex.color = {1.0f, 1.0f, 1.0f};
+            vertex.normal = {1.0f, 1.0f, 1.0f};
 
             if (uniqueVertices.count(vertex) == 0)
             {
