@@ -51,5 +51,5 @@ void main() {
                 0               // payload (location = 0)
     );
 
-    imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(payload.hitValue, 1.0));
+    imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(pow(payload.hitValue, vec3(1.0/2.2,1.0/2.2,1.0/2.2)), 1.0));
 }
