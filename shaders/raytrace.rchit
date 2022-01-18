@@ -1,6 +1,11 @@
 #version 460
 #extension GL_EXT_ray_tracing : require
 #extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_GOOGLE_include_directive : require
+
+#include "ao_helpers.h"
+
+#define AO_NUM 16
 
 struct Material {
   vec3 ambient;
@@ -40,7 +45,6 @@ layout(binding = 4) buffer IndexBuffer { uint data[]; } indexBuffer;
 layout(binding = 5) buffer VertexBuffer { Vertex data[]; } vertexBuffer;
 layout(binding = 6) buffer MaterialIndexBuffer { uint data[]; } materialIndexBuffer;
 layout(binding = 7) buffer MaterialBuffer { Material data[]; } materialBuffer;
-
 
 void main() {
     ivec3 indices = ivec3(indexBuffer.data[3 * gl_PrimitiveID + 0], indexBuffer.data[3 * gl_PrimitiveID + 1], indexBuffer.data[3 * gl_PrimitiveID + 2]);
@@ -92,12 +96,44 @@ void main() {
                //intensity += 0.5f * pow(clamp(dot(normal, h), 0.0f, 1.0f),16.0f);
                intensity += min(1.0f, intensity);
                payload.hitValue = color*intensity;
+
+
            } else if (payload.hitType == 1){
                vec2 texCoord = v0.texCoord * barycentric.x + v1.texCoord * barycentric.y + v2.texCoord * barycentric.z;
                payload.hitValue = texture(texSampler, texCoord).rgb*0.1;
            }
 
-           //place for other effect like AO
+           // place for other effect such as AO
+
+           // 1. Offset position with helper function
+           vec3 normal = v0.pos*barycentric.x + v1.pos*barycentric.y + v2.pos*barycentric.z;
+           vec3 pos_off = OffsetPositionAlongNormal(pos, normal);
+
+           payload.hitType = 2;
+           // maybe could be 0, we are already offsetting above
+           tMin = 0.00001;
+           // model dependent
+           tMax = 10.0;
+
+           for(int i = 0; i < 4; ++i){
+           // generate direction
+           vec3 dir = GetRandCosDir(normal);
+
+           // trace
+           traceRayEXT(
+                    topLevelAS,
+                    rayFlags,
+                    0xFF,
+                    0,
+                    0,
+                    0,
+                    pos,
+                    tMin,
+                    dir,
+                    tMax,
+                    0
+               );
+           }
 
            //for mirrors probably wrap all this in something like if (is normal material) {do above} else {do mirror}
 
@@ -105,6 +141,8 @@ void main() {
            payload.hitValue = color*intensity;
        } else if (payload.hitType == 1){
         // ray emitted above, shadow, we do nothing
-    }//TODO else if (payload.hitType == X){ something}
+    } else if(payload.hitType == 2)
+    {
+    } //TODO else if (payload.hitType == X){ something}
 
 }

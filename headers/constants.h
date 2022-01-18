@@ -12,7 +12,7 @@ constexpr std::string_view MODEL_PATH = "assets/models/Windmill.obj";
 constexpr std::string_view MODELS_FOLDER = "assets/models/";
 constexpr std::string_view TEXTURE_PATH = "assets/textures/windmill.png";
 
-constexpr std::string_view LOW_POLY_MODEL_PATH = "assets/models/windmill.obj";
+constexpr std::string_view LOW_POLY_MODEL_PATH = "assets/models/Windmill.obj";
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 

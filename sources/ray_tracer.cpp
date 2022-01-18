@@ -370,13 +370,31 @@ void RayTracerApp::cleanup()
     vkDestroyBuffer(device, indexRTBuffer, nullptr);
     vkFreeMemory(device, indexRTBufferMemory, nullptr);
 
+    vkDestroyBuffer(device, vertexRTDataBuffer, nullptr);
+    vkFreeMemory(device, vertexRTDataBufferMemory, nullptr);
+
+    vkDestroyBuffer(device, tlasScratchBuffer, nullptr);
+    vkFreeMemory(device, tlasScratchBufferMemory, nullptr);
+
+    vkDestroyBuffer(device, materialIndexBuffer, nullptr);
+    vkFreeMemory(device, materialIndexBufferMemory, nullptr);
+
+    vkDestroyBuffer(device, materialBuffer, nullptr);
+    vkFreeMemory(device, materialBufferMemory, nullptr);
+
+    vkDestroyBuffer(device, shaderBindingTableBuffer, nullptr);
+    vkFreeMemory(device, shaderBindingTableBufferMemory, nullptr);
+
+    vkDestroyBuffer(device, instancesBuffer, nullptr);
+    vkFreeMemory(device, instancesBufferMemory, nullptr);
+
+    ExtFun::vkDestroyAccelerationStructureKHR(device, blas, nullptr);
     vkDestroyBuffer(device, blasBuffer, nullptr);
     vkFreeMemory(device, blasBufferMemory, nullptr);
 
-    ExtFun::vkDestroyAccelerationStructureKHR(device, blas, nullptr);
-
-    VkBuffer scratchBuffer;
-    VkDeviceMemory scratchBufferMemory;
+    ExtFun::vkDestroyAccelerationStructureKHR(device, tlas, nullptr);
+    vkDestroyBuffer(device, tlasBuffer, nullptr);
+    vkFreeMemory(device, tlasBufferMemory, nullptr);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {

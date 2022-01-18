@@ -185,11 +185,12 @@ struct RayTracerApp
     VkBuffer shaderBindingTableBuffer;
     VkDeviceMemory shaderBindingTableBufferMemory;
 
+    VkBuffer instancesBuffer;
+    VkDeviceMemory instancesBufferMemory;
+
     VkAccelerationStructureKHR blas;
     VkAccelerationStructureKHR tlas;
 
-    VkBuffer instancesBuffer;
-    VkDeviceMemory instancesBufferMemory;
 
     VkDeviceAddress vertexRTBufferAddress;
     VkDeviceAddress indexRTBufferAddress;

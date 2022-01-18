@@ -56,6 +56,7 @@ set(SHADERS
     shaders/raytrace.rgen
     shaders/raytrace.rchit
     shaders/raytrace.rmiss
+    shaders/ao_helpers.h
 )
 
 source_group("shaders" FILES ${SHADERS})
