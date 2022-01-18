@@ -1,6 +1,6 @@
 #include "ray_tracer.h"
 
-void RayTracerApp::loadModel(Model &m)
+void RayTracerApp::loadModel(Model &m, Rt_model &rt_m)
 {
     tinyobj::ObjReaderConfig config;
     config.mtl_search_path = MODELS_FOLDER;
@@ -18,6 +18,13 @@ void RayTracerApp::loadModel(Model &m)
     const auto &shapes = reader.GetShapes();
     const auto &attrib = reader.GetAttrib();
 
+    m.vertices.clear();
+    m.indices.clear();
+    m.materials.clear();
+    m.materials_indices.clear();
+    rt_m.vertices.clear();
+    rt_m.indices.clear();
+
     std::unordered_map<Vertex, uint32_t> uniqueVertices{};
     m.materials = materials;
     for (const auto &shape : shapes)
@@ -34,66 +41,28 @@ void RayTracerApp::loadModel(Model &m)
                                // the bottom
                                1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
 
-            vertex.normal = {attrib.colors[3 * index.vertex_index], attrib.colors[3 * index.vertex_index + 1],
-                             attrib.colors[3 * index.vertex_index + 2]};
-            // vertex.color = {1.0f, 1.0f, 1.0f};
+            vertex.normal = {attrib.normals[3 * index.vertex_index], attrib.normals[3 * index.vertex_index + 1],
+                             attrib.normals[3 * index.vertex_index + 2]};
+            // vertex.normal = {1.0f, 1.0f, 1.0f};
 
             if (uniqueVertices.count(vertex) == 0)
             {
                 uniqueVertices[vertex] = static_cast<uint32_t>(m.vertices.size());
                 m.vertices.push_back(vertex);
+
+                rt_m.vertices.push_back(vertex.pos.x);
+                rt_m.vertices.push_back(vertex.pos.y);
+                rt_m.vertices.push_back(vertex.pos.z);
             }
 
             m.indices.push_back(uniqueVertices[vertex]);
+            rt_m.indices.push_back(uniqueVertices[vertex]);
         }
 
         for (const auto &material_idx : shape.mesh.material_ids)
             m.materials_indices.push_back(material_idx);
     }
     return;
-}
-
-void RayTracerApp::loadRTGeometry(Rt_model &m, std::string path)
-{
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn, err;
-
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.c_str()))
-    {
-        throw std::runtime_error(warn + err);
-    }
-
-    std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
-    for (const auto &shape : shapes)
-    {
-        for (const auto &index : shape.mesh.indices)
-        {
-            Vertex vertex{};
-
-            vertex.pos = {attrib.vertices[3 * index.vertex_index + 0], attrib.vertices[3 * index.vertex_index + 1],
-                          attrib.vertices[3 * index.vertex_index + 2]};
-
-            vertex.texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
-                               // we have 0 at the top while obj 0 at
-                               // the bottom
-                               1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
-
-            vertex.normal = {1.0f, 1.0f, 1.0f};
-
-            if (uniqueVertices.count(vertex) == 0)
-            {
-                uniqueVertices[vertex] = static_cast<uint32_t>(m.vertices.size() / 3);
-                m.vertices.push_back(vertex.pos.x);
-                m.vertices.push_back(vertex.pos.y);
-                m.vertices.push_back(vertex.pos.z);
-            }
-
-            m.indices.push_back(uniqueVertices[vertex]);
-        }
-    }
 }
 
 VkFormat RayTracerApp::findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling,

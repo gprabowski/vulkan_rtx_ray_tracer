@@ -31,14 +31,15 @@ void RayTracerApp::initVulkan()
     createTextureImageView();
     createTextureSampler();
 
-    loadModel(model);
+    loadModel(model, ray_model);
+    // loadRTGeometry(ray_model, std::string(LOW_POLY_MODEL_PATH));
+
     createVertexBuffer();
     createIndexBuffer();
-
-    loadRTGeometry(ray_model, std::string(LOW_POLY_MODEL_PATH));
     createRTVertexBuffer();
-    createRTDataVertexBuffer();
     createRTIndexBuffer();
+    createRTDataVertexBuffer();
+    createRTDataIndexBuffer();
     createMaterialsBuffer();
 
     createRT_BLAS();
@@ -354,37 +355,40 @@ void RayTracerApp::cleanup()
     vkFreeMemory(device, textureImageMemory, nullptr);
 
     vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-
-    vkDestroyBuffer(device, indexBuffer, nullptr);
-    vkFreeMemory(device, indexBufferMemory, nullptr);
-
+    std::cout << "deleting vertexBuffer" << std::endl;
     vkDestroyBuffer(device, vertexBuffer, nullptr);
     vkFreeMemory(device, vertexBufferMemory, nullptr);
-
+    std::cout << "deleting vertexRTBuffer" << std::endl;
     vkDestroyBuffer(device, vertexRTBuffer, nullptr);
     vkFreeMemory(device, vertexRTBufferMemory, nullptr);
-
-    vkDestroyBuffer(device, blasScratchBuffer, nullptr);
-    vkFreeMemory(device, blasScratchBufferMemory, nullptr);
-
-    vkDestroyBuffer(device, indexRTBuffer, nullptr);
-    vkFreeMemory(device, indexRTBufferMemory, nullptr);
-
+    std::cout << "deleting vertexRTDataBuffer" << std::endl;
     vkDestroyBuffer(device, vertexRTDataBuffer, nullptr);
     vkFreeMemory(device, vertexRTDataBufferMemory, nullptr);
-
+    std::cout << "deleting blasScratchBuffer" << std::endl;
+    vkDestroyBuffer(device, blasScratchBuffer, nullptr);
+    vkFreeMemory(device, blasScratchBufferMemory, nullptr);
+    std::cout << "deleting indexBuffer" << std::endl;
+    vkDestroyBuffer(device, indexBuffer, nullptr);
+    vkFreeMemory(device, indexBufferMemory, nullptr);
+    std::cout << "deleting indexRTBuffer" << std::endl;
+    vkDestroyBuffer(device, indexRTBuffer, nullptr);
+    vkFreeMemory(device, indexRTBufferMemory, nullptr);
+    std::cout << "deleting indexRTDataBuffer" << std::endl;
+    vkDestroyBuffer(device, indexRTDataBuffer, nullptr);
+    vkFreeMemory(device, indexRTDataBufferMemory, nullptr);
+    std::cout << "deleting tlasScratchBuffer" << std::endl;
     vkDestroyBuffer(device, tlasScratchBuffer, nullptr);
     vkFreeMemory(device, tlasScratchBufferMemory, nullptr);
-
+    std::cout << "deleting materialIndexBuffer" << std::endl;
     vkDestroyBuffer(device, materialIndexBuffer, nullptr);
     vkFreeMemory(device, materialIndexBufferMemory, nullptr);
-
+    std::cout << "deleting materialBuffer" << std::endl;
     vkDestroyBuffer(device, materialBuffer, nullptr);
     vkFreeMemory(device, materialBufferMemory, nullptr);
-
+    std::cout << "deleting shaderBindingTableBuffer" << std::endl;
     vkDestroyBuffer(device, shaderBindingTableBuffer, nullptr);
     vkFreeMemory(device, shaderBindingTableBufferMemory, nullptr);
-
+    std::cout << "deleting instancesBuffer" << std::endl;
     vkDestroyBuffer(device, instancesBuffer, nullptr);
     vkFreeMemory(device, instancesBufferMemory, nullptr);
 
