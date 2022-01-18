@@ -359,6 +359,7 @@ void RayTracerApp::createDescriptorPool()
     poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
     poolInfo.pPoolSizes = poolSizes.data();
     poolInfo.maxSets = static_cast<uint32_t>(2 * swapChainImages.size());
+    poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 
     if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
     {
@@ -551,25 +552,25 @@ void RayTracerApp::createDescriptorSetLayout()
     bindings[4].descriptorCount = 1;
     bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[4].pImmutableSamplers = nullptr;
-    bindings[4].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    bindings[4].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     bindings[5].binding = 5;  // vertices
     bindings[5].descriptorCount = 1;
     bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[5].pImmutableSamplers = nullptr;
-    bindings[5].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    bindings[5].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     bindings[6].binding = 6;  // material indices
     bindings[6].descriptorCount = 1;
     bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[6].pImmutableSamplers = nullptr;
-    bindings[6].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    bindings[6].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     bindings[7].binding = 7;  // materials
     bindings[7].descriptorCount = 1;
     bindings[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[7].pImmutableSamplers = nullptr;
-    bindings[7].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    bindings[7].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;

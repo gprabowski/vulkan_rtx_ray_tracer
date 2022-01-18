@@ -13,9 +13,9 @@
 
 struct Vertex
 {
-    glm::vec3 pos;
-    glm::vec3 color;
-    glm::vec2 texCoord;
+    alignas(16) glm::vec3 pos;
+    alignas(16) glm::vec3 color;
+    alignas(8) glm::vec2 texCoord;
 
     bool operator==(const Vertex &other) const;
     static VkVertexInputBindingDescription getBindingDescription();
