@@ -5,7 +5,7 @@
 
 #include "ao_helpers.h"
 
-#define AO_NUM 16
+#define AO_NUM 64
 
 struct Material {
   vec3 ambient;
@@ -109,36 +109,42 @@ void main() {
            vec3 normal = v0.pos*barycentric.x + v1.pos*barycentric.y + v2.pos*barycentric.z;
            vec3 pos_off = OffsetPositionAlongNormal(pos, normal);
 
-           payload.hitType = 2;
            // maybe could be 0, we are already offsetting above
-           tMin = 0.00001;
+           tMin = 0.0;
            // model dependent
-           tMax = 10.0;
+           tMax = 1.5;
+           float ao_misses = 0;
+           for(int i = 0; i < AO_NUM; ++i){
+                   // generate direction
+                   vec3 dir = GetRandCosDir(normal);
+                   payload.hitType = 1;
 
-           for(int i = 0; i < 4; ++i){
-           // generate direction
-           vec3 dir = GetRandCosDir(normal);
-
-           // trace
-           traceRayEXT(
-                    topLevelAS,
-                    rayFlags,
-                    0xFF,
-                    0,
-                    0,
-                    0,
-                    pos,
-                    tMin,
-                    dir,
-                    tMax,
-                    0
-               );
+                   // trace
+                   traceRayEXT(
+                            topLevelAS,
+                            rayFlags,
+                            0xFF,
+                            0,
+                            0,
+                            0,
+                            pos_off,
+                            tMin,
+                            dir,
+                            tMax,
+                            0
+                       );
+                   if(payload.hitType == 0) // miss -> AO
+                   {
+                     ao_misses += 1.0f;
+                   }
            }
+
+           ao_misses /= AO_NUM;
 
            //for mirrors probably wrap all this in something like if (is normal material) {do above} else {do mirror}
 
 
-           payload.hitValue = color*intensity;
+           payload.hitValue = color*intensity * ao_misses;
        } else if (payload.hitType == 1){
         // ray emitted above, shadow, we do nothing
     } else if(payload.hitType == 2)
