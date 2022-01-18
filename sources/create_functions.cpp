@@ -1318,6 +1318,36 @@ void RayTracerApp::createRTCommandBuffers()
             throw std::runtime_error("error starting command buffer");
         }
 
+        // image transition
+        VkImageSubresourceRange range;
+        range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        range.baseMipLevel = 0;
+        range.levelCount = 1;
+        range.baseArrayLayer = 0;
+        range.layerCount = 1;
+
+        VkImageMemoryBarrier imageBarrier_toTransfer = {};
+        imageBarrier_toTransfer.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        imageBarrier_toTransfer.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        imageBarrier_toTransfer.image = swapChainImages[i];
+        imageBarrier_toTransfer.subresourceRange = range;
+
+        imageBarrier_toTransfer.srcAccessMask = VK_ACCESS_NONE_KHR;
+        imageBarrier_toTransfer.dstAccessMask = VK_ACCESS_NONE_KHR;
+
+        //barrier the image into the transfer-receive layout
+        vkCmdPipelineBarrier(commandBuffers[i],
+                             VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT_KHR,
+                             VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
+                             0, 0,
+                             nullptr, 0,
+                             nullptr, 1,
+                             &imageBarrier_toTransfer);
+
+        // end of image transition
+
+
+
         vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, graphicsPipeline);
         vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipelineLayout, 0, 1,
                                 &descriptorSets[i], 0, 0);
@@ -1328,6 +1358,22 @@ void RayTracerApp::createRTCommandBuffers()
         ExtFun::vkCmdTraceRaysKHR(device, commandBuffers[i], &rgenShaderBindingTable, &rmissShaderBindingTable,
                                   &rchitShaderBindingTable, &callableShaderBindingTable, swapChainExtent.width,
                                   swapChainExtent.height, 1);
+
+
+        imageBarrier_toTransfer.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        imageBarrier_toTransfer.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        imageBarrier_toTransfer.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT_KHR;
+
+        //barrier the image into the transfer-receive layout
+        vkCmdPipelineBarrier(commandBuffers[i],
+                             VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
+                             VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT_KHR,
+                             0, 0,
+                             nullptr, 0,
+                             nullptr, 1,
+                             &imageBarrier_toTransfer);
+
+        // end of image transition
 
         if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS)
         {

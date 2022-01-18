@@ -19,8 +19,9 @@ struct Vertex
 hitAttributeEXT vec2 attribs;
 
 layout(location = 0) rayPayloadInEXT Payload {
-	//TODO
+    //TODO
     vec3 hitValue;
+    int hitType;
 } payload;
 
 
@@ -52,4 +53,58 @@ void main() {
     vec2 texCoord = v0.texCoord * barycentric.x + v1.texCoord * barycentric.y + v2.texCoord * barycentric.z;
 
     payload.hitValue = texture(texSampler, texCoord).rgb;
+
+    vec3 light_direction = normalize(vec3(-0.3f, 1.0f, -0.5f));
+    vec3 cam = (ubo.inv_view * vec4(0.0f,0.0f,0.0f,1.0f)).xyz;
+
+    vec3 pos = v0.pos*barycentric.x + v1.pos*barycentric.y + v2.pos*barycentric.z;
+    pos = vec3(gl_ObjectToWorldEXT * vec4(pos, 1.0f));
+
+
+    if (payload.hitType == 0) { //ray created in rgen shader
+           uint  rayFlags = gl_RayFlagsOpaqueEXT;
+           float tMin     = 0.001;
+           float tMax     = 100.0;
+
+           payload.hitType = 1;
+           traceRayEXT(topLevelAS,     // acceleration structure
+                       rayFlags,       // rayFlags
+                       0xFF,           // cullMask
+                       0,              // sbtRecordOffset
+                       0,              // sbtRecordStride
+                       0,              // missIndex
+                       pos,            // ray origin
+                       tMin,           // ray min range
+                       light_direction,// ray direction
+                       tMax,           // ray max range
+                       0               // payload (location = 0)
+           );
+           vec2 texCoord = v0.texCoord * barycentric.x + v1.texCoord * barycentric.y + v2.texCoord * barycentric.z;
+           vec3 color = payload.hitValue = texture(texSampler, texCoord).rgb;
+           float intensity = 0.1f;
+
+           if (payload.hitType == 0){//miss -> sun
+               vec3 normal = v0.pos*barycentric.x + v1.pos*barycentric.y + v2.pos*barycentric.z;
+               vec3 view = normalize(cam - pos);
+               vec3 h = normalize(view + light_direction);
+               intensity += 0.6f * clamp(dot(normal, light_direction), 0.0f, 1.0f);
+               //TODO - for now some magic numbers, materials dana should be used
+               //intensity += 0.5f * pow(clamp(dot(normal, h), 0.0f, 1.0f),16.0f);
+               intensity += min(1.0f, intensity);
+               payload.hitValue = color*intensity;
+           } else if (payload.hitType == 1){
+               vec2 texCoord = v0.texCoord * barycentric.x + v1.texCoord * barycentric.y + v2.texCoord * barycentric.z;
+               payload.hitValue = texture(texSampler, texCoord).rgb*0.1;
+           }
+
+           //place for other effect like AO
+
+           //for mirrors probably wrap all this in something like if (is normal material) {do above} else {do mirror}
+
+
+           payload.hitValue = color*intensity;
+       } else if (payload.hitType == 1){
+        // ray emitted above, shadow, we do nothing
+    }//TODO else if (payload.hitType == X){ something}
+
 }
