@@ -32,7 +32,7 @@ void RayTracerApp::loadModel(Model &m)
             vertex.texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
                                // we have 0 at the top while obj 0 at
                                // the bottom
-                               attrib.texcoords[2 * index.texcoord_index + 1]};
+                               1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
 
             vertex.color = {attrib.colors[3 * index.vertex_index], attrib.colors[3 * index.vertex_index + 1],
                             attrib.colors[3 * index.vertex_index + 2]};
