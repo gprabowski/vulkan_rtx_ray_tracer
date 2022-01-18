@@ -564,15 +564,13 @@ void RayTracerApp::createDescriptorSetLayout()
     bindings[6].descriptorCount = 1;
     bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[6].pImmutableSamplers = nullptr;
-    bindings[6].stageFlags =
-        VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    bindings[6].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     bindings[7].binding = 7;  // materials
     bindings[7].descriptorCount = 1;
     bindings[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[7].pImmutableSamplers = nullptr;
-    bindings[7].stageFlags =
-        VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    bindings[7].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;

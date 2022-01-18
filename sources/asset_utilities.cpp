@@ -25,7 +25,7 @@ void RayTracerApp::loadModel(Model &m, Rt_model &rt_m)
     rt_m.vertices.clear();
     rt_m.indices.clear();
 
-    std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+    std::map<Vertex, uint32_t> uniqueVertices{};
     m.materials = materials;
     for (const auto &shape : shapes)
     {

@@ -5,6 +5,21 @@ bool Vertex::operator==(const Vertex &other) const
     return pos == other.pos && normal == other.normal && texCoord == other.texCoord;
 }
 
+bool Vertex::operator<(const Vertex &other) const
+{
+    std::array<float, 8> v1 = {pos.x, pos.y, pos.z, normal.x, normal.y, normal.z, texCoord.x, texCoord.y};
+    std::array<float, 8> v2 = {other.pos.x,    other.pos.y,    other.pos.z,      other.normal.x,
+                               other.normal.y, other.normal.z, other.texCoord.x, other.texCoord.y};
+    for (int i = 0; i < 8; i++)
+    {
+        if (v2[i] > v1[i])
+            return false;
+        if (v2[i] < v1[i])
+            return true;
+    }
+    return false;
+}
+
 VkVertexInputBindingDescription Vertex::getBindingDescription()
 {
     VkVertexInputBindingDescription bindingDescription{};
