@@ -41,8 +41,8 @@ void RayTracerApp::loadModel(Model &m, Rt_model &rt_m)
                                // the bottom
                                1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
 
-            vertex.normal = {attrib.normals[3 * index.vertex_index], attrib.normals[3 * index.vertex_index + 1],
-                             attrib.normals[3 * index.vertex_index + 2]};
+            vertex.normal = {attrib.normals[3 * index.normal_index], attrib.normals[3 * index.normal_index + 1],
+                             attrib.normals[3 * index.normal_index + 2]};
             // vertex.normal = {1.0f, 1.0f, 1.0f};
 
             if (uniqueVertices.count(vertex) == 0)
