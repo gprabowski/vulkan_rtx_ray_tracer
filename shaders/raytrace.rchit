@@ -108,8 +108,7 @@ void main() {
         // place for other effect such as AO
 
         // 1. Offset position with helper function
-        vec3 worldNormal = normalize((normal * gl_WorldToObjectEXT).xyz);
-        faceforward(worldNormal, gl_WorldRayDirectionEXT, worldNormal);
+        normal = faceforward(normal, gl_WorldRayDirectionEXT, normal);
         vec3 pos_off = OffsetPositionAlongNormal(pos, normal);
 
 
@@ -120,7 +119,7 @@ void main() {
         float ao_misses = 0;
         for(int i = 0; i < AO_NUM; ++i){
                 // generate direction
-                vec3 dir = GetRandCosDir(worldNormal);
+                vec3 dir = GetRandCosDir(normal);
                 payload.hitType = 1;
 
                 // trace
@@ -147,7 +146,7 @@ void main() {
 
         //for mirrors probably wrap all this in something like if (is normal material) {do above} else {do mirror}
 
-        payload.hitValue = color * intensity ;
+        payload.hitValue = color * intensity * ao_misses;
 
        } else if (payload.hitType == 1){
         // ray emitted above, shadow, we do nothing
