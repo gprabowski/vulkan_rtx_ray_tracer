@@ -458,7 +458,7 @@ void RayTracerApp::createDescriptorSets()
 
         // vertex indices
         VkDescriptorBufferInfo vertexIndexBufferInfo = {};
-        vertexIndexBufferInfo.buffer = indexRTBuffer;
+        vertexIndexBufferInfo.buffer = indexRTDataBuffer;
         vertexIndexBufferInfo.offset = 0;
         vertexIndexBufferInfo.range = VK_WHOLE_SIZE;
 
@@ -564,13 +564,15 @@ void RayTracerApp::createDescriptorSetLayout()
     bindings[6].descriptorCount = 1;
     bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[6].pImmutableSamplers = nullptr;
-    bindings[6].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    bindings[6].stageFlags =
+        VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     bindings[7].binding = 7;  // materials
     bindings[7].descriptorCount = 1;
     bindings[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[7].pImmutableSamplers = nullptr;
-    bindings[7].stageFlags = VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    bindings[7].stageFlags =
+        VK_SHADER_STAGE_ALL | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -611,40 +613,6 @@ void RayTracerApp::createIndexBuffer()
     vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
-void RayTracerApp::createRTIndexBuffer()
-{
-    VkDeviceSize bufferSize = sizeof(ray_model.indices[0]) * ray_model.indices.size();
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-                 stagingBufferMemory, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
-
-    void *data;
-    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, model.indices.data(), (size_t)bufferSize);
-    vkUnmapMemory(device, stagingBufferMemory);
-
-    createBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-            VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexRTBuffer, indexRTBufferMemory, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
-
-    copyBuffer(stagingBuffer, indexRTBuffer, bufferSize);
-
-    VkBufferDeviceAddressInfo addressInfo{};
-    addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    addressInfo.buffer = indexRTBuffer;
-    indexRTBufferAddress = ExtFun::vkGetBufferDeviceAddress(device, &addressInfo);
-
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingBufferMemory, nullptr);
-}
-
 void RayTracerApp::createVertexBuffer()
 {
     VkDeviceSize bufferSize = sizeof(model.vertices[0]) * model.vertices.size();
@@ -675,6 +643,79 @@ void RayTracerApp::createVertexBuffer()
     vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
+void RayTracerApp::createRTVertexBuffer()
+{
+    VkDeviceSize bufferSize = sizeof(ray_model.vertices[0]) * ray_model.vertices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
+                 stagingBufferMemory, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+
+    void *data;
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, ray_model.vertices.data(), (size_t)bufferSize);
+    // no need to wait for cache flush because
+    // VK_MEMORY_PROPERTY_HOST_COHERENT_BIT was
+    // specified
+    vkUnmapMemory(device, stagingBufferMemory);
+
+    // memory transfer is async
+    // but the standard guarantees that it will be
+    // complete by the next call to vkQueueSubmit
+    //
+    createBuffer(bufferSize,
+                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                     VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexRTBuffer, vertexRTBufferMemory,
+                 VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+    copyBuffer(stagingBuffer, vertexRTBuffer, bufferSize);
+
+    VkBufferDeviceAddressInfo addressInfo{};
+    addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    addressInfo.buffer = vertexRTBuffer;
+    vertexRTBufferAddress = ExtFun::vkGetBufferDeviceAddress(device, &addressInfo);
+
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+void RayTracerApp::createRTIndexBuffer()
+{
+    VkDeviceSize bufferSize = sizeof(ray_model.indices[0]) * ray_model.indices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
+                 stagingBufferMemory, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+
+    void *data;
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, ray_model.indices.data(), (size_t)bufferSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+
+    createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexRTBuffer, indexRTBufferMemory, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+
+    copyBuffer(stagingBuffer, indexRTBuffer, bufferSize);
+
+    VkBufferDeviceAddressInfo addressInfo{};
+    addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    addressInfo.buffer = indexRTBuffer;
+    indexRTBufferAddress = ExtFun::vkGetBufferDeviceAddress(device, &addressInfo);
+
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
 void RayTracerApp::createMaterialsBuffer()
 {
     {
@@ -695,7 +736,7 @@ void RayTracerApp::createMaterialsBuffer()
         createBuffer(materialIndexBufferSize,
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialIndexBuffer, indexBufferMemory,
+                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialIndexBuffer, materialIndexBufferMemory,
                      VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
 
         copyBuffer(materialIndexStagingBuffer, materialIndexBuffer, materialIndexBufferSize);
@@ -731,7 +772,7 @@ void RayTracerApp::createMaterialsBuffer()
         createBuffer(materialBufferSize,
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialBuffer, indexBufferMemory,
+                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialBuffer, materialBufferMemory,
                      VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
 
         copyBuffer(materialStagingBuffer, materialBuffer, materialBufferSize);
@@ -941,45 +982,6 @@ void RayTracerApp::copyHtoDSync(VkDeviceSize bufferSize, void *trData, VkBuffer 
     vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
-void RayTracerApp::createRTVertexBuffer()
-{
-    VkDeviceSize bufferSize = sizeof(ray_model.vertices[0]) * ray_model.vertices.size();
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-                 stagingBufferMemory, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
-
-    void *data;
-    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, ray_model.vertices.data(), (size_t)bufferSize);
-    // no need to wait for cache flush because
-    // VK_MEMORY_PROPERTY_HOST_COHERENT_BIT was
-    // specified
-    vkUnmapMemory(device, stagingBufferMemory);
-
-    // memory transfer is async
-    // but the standard guarantees that it will be
-    // complete by the next call to vkQueueSubmit
-    //
-    createBuffer(bufferSize,
-                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                     VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexRTBuffer, vertexRTBufferMemory,
-                 VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
-    copyBuffer(stagingBuffer, vertexRTBuffer, bufferSize);
-
-    VkBufferDeviceAddressInfo addressInfo{};
-    addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    addressInfo.buffer = vertexRTBuffer;
-    vertexRTBufferAddress = ExtFun::vkGetBufferDeviceAddress(device, &addressInfo);
-
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingBufferMemory, nullptr);
-}
-
 void RayTracerApp::createRTDataVertexBuffer()
 {
     VkDeviceSize bufferSize = sizeof(model.vertices[0]) * model.vertices.size();
@@ -1001,6 +1003,36 @@ void RayTracerApp::createRTDataVertexBuffer()
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexRTDataBuffer, vertexRTDataBufferMemory,
                  VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
     copyBuffer(stagingBuffer, vertexRTDataBuffer, bufferSize);
+
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+void RayTracerApp::createRTDataIndexBuffer()
+{
+    VkDeviceSize bufferSize = sizeof(model.indices[0]) * model.indices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
+                 stagingBufferMemory, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+
+    void *data;
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, model.indices.data(), (size_t)bufferSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+
+    createBuffer(bufferSize,
+                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                     VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                     VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexRTDataBuffer, indexRTDataBufferMemory,
+                 VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+
+    copyBuffer(stagingBuffer, indexRTDataBuffer, bufferSize);
 
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -1335,18 +1367,12 @@ void RayTracerApp::createRTCommandBuffers()
         imageBarrier_toTransfer.srcAccessMask = VK_ACCESS_NONE_KHR;
         imageBarrier_toTransfer.dstAccessMask = VK_ACCESS_NONE_KHR;
 
-        //barrier the image into the transfer-receive layout
-        vkCmdPipelineBarrier(commandBuffers[i],
-                             VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT_KHR,
-                             VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
-                             0, 0,
-                             nullptr, 0,
-                             nullptr, 1,
+        // barrier the image into the transfer-receive layout
+        vkCmdPipelineBarrier(commandBuffers[i], VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT_KHR,
+                             VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR, 0, 0, nullptr, 0, nullptr, 1,
                              &imageBarrier_toTransfer);
 
         // end of image transition
-
-
 
         vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, graphicsPipeline);
         vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipelineLayout, 0, 1,
@@ -1359,18 +1385,13 @@ void RayTracerApp::createRTCommandBuffers()
                                   &rchitShaderBindingTable, &callableShaderBindingTable, swapChainExtent.width,
                                   swapChainExtent.height, 1);
 
-
         imageBarrier_toTransfer.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
         imageBarrier_toTransfer.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
         imageBarrier_toTransfer.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT_KHR;
 
-        //barrier the image into the transfer-receive layout
-        vkCmdPipelineBarrier(commandBuffers[i],
-                             VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
-                             VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT_KHR,
-                             0, 0,
-                             nullptr, 0,
-                             nullptr, 1,
+        // barrier the image into the transfer-receive layout
+        vkCmdPipelineBarrier(commandBuffers[i], VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
+                             VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT_KHR, 0, 0, nullptr, 0, nullptr, 1,
                              &imageBarrier_toTransfer);
 
         // end of image transition

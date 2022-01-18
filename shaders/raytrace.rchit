@@ -64,6 +64,10 @@ void main() {
     vec3 pos = v0.pos*barycentric.x + v1.pos*barycentric.y + v2.pos*barycentric.z;
     pos = vec3(gl_ObjectToWorldEXT * vec4(pos, 1.0f));
 
+    vec3 normal = v0.normal*barycentric.x + v1.normal*barycentric.y + v2.normal*barycentric.z;
+    payload.hitValue = vec3(texCoord, 0.0f);
+    //payload.hitValue = normal;
+    return;
 
     if (payload.hitType == 0) { //ray created in rgen shader
            uint  rayFlags = gl_RayFlagsOpaqueEXT;
@@ -93,7 +97,7 @@ void main() {
                vec3 h = normalize(view + light_direction);
                intensity += 0.6f * clamp(dot(normal, light_direction), 0.0f, 1.0f);
                //TODO - for now some magic numbers, materials dana should be used
-               //intensity += 0.5f * pow(clamp(dot(normal, h), 0.0f, 1.0f),16.0f);
+               intensity += 0.5f * pow(clamp(dot(normal, h), 0.0f, 1.0f),16.0f);
                intensity += min(1.0f, intensity);
                payload.hitValue = color*intensity;
 
@@ -103,6 +107,8 @@ void main() {
                payload.hitValue = texture(texSampler, texCoord).rgb*0.1;
            }
 
+           payload.hitValue = color* (intensity);
+           return;
            // place for other effect such as AO
 
            // 1. Offset position with helper function
@@ -110,6 +116,7 @@ void main() {
            vec3 worldNormal = normalize((normal * gl_WorldToObjectEXT).xyz);
            faceforward(worldNormal, gl_WorldRayDirectionEXT, worldNormal);
            vec3 pos_off = OffsetPositionAlongNormal(pos, normal);
+
 
            // maybe could be 0, we are already offsetting above
            tMin = 0.0;
@@ -145,8 +152,8 @@ void main() {
 
            //for mirrors probably wrap all this in something like if (is normal material) {do above} else {do mirror}
 
-
            payload.hitValue = color*intensity * ao_misses;
+
        } else if (payload.hitType == 1){
         // ray emitted above, shadow, we do nothing
     } else if(payload.hitType == 2)

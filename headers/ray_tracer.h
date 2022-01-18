@@ -161,6 +161,9 @@ struct RayTracerApp
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
 
+    VkBuffer indexRTDataBuffer;
+    VkDeviceMemory indexRTDataBufferMemory;
+
     VkBuffer indexRTBuffer;
     VkDeviceMemory indexRTBufferMemory;
 
@@ -190,7 +193,6 @@ struct RayTracerApp
 
     VkAccelerationStructureKHR blas;
     VkAccelerationStructureKHR tlas;
-
 
     VkDeviceAddress vertexRTBufferAddress;
     VkDeviceAddress indexRTBufferAddress;
@@ -243,6 +245,7 @@ struct RayTracerApp
     void createRTIndexBuffer();
     void createRTVertexBuffer();
     void createRTDataVertexBuffer();
+    void createRTDataIndexBuffer();
     void createRT_BLAS();
     void createRT_TLAS();
 
@@ -308,7 +311,7 @@ struct RayTracerApp
                       VkMemoryAllocateFlags allocFlags = VK_MEMORY_ALLOCATE_FLAG_BITS_MAX_ENUM);
     // asset utils
     std::vector<char> readFile(const std::string &filename);
-    void loadModel(Model &m);
+    void loadModel(Model &m, Rt_model &rt_m);
     void loadRTGeometry(Rt_model &m, std::string path);
 };
 
