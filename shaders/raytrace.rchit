@@ -17,7 +17,7 @@ struct Material {
 struct Vertex
 {
     vec3 pos;
-    vec3 color;
+    vec3 normal;
     vec2 texCoord;
 };
 
@@ -67,8 +67,8 @@ void main() {
 
     if (payload.hitType == 0) { //ray created in rgen shader
            uint  rayFlags = gl_RayFlagsOpaqueEXT;
-           float tMin     = 0.001;
-           float tMax     = 100.0;
+           float tMin     = 0.01;
+           float tMax     = 7.0;
 
            payload.hitType = 1;
            traceRayEXT(topLevelAS,     // acceleration structure
@@ -88,7 +88,7 @@ void main() {
            float intensity = 0.1f;
 
            if (payload.hitType == 0){//miss -> sun
-               vec3 normal = v0.pos*barycentric.x + v1.pos*barycentric.y + v2.pos*barycentric.z;
+               vec3 normal = v0.normal*barycentric.x + v1.normal*barycentric.y + v2.normal*barycentric.z;
                vec3 view = normalize(cam - pos);
                vec3 h = normalize(view + light_direction);
                intensity += 0.6f * clamp(dot(normal, light_direction), 0.0f, 1.0f);
@@ -106,7 +106,9 @@ void main() {
            // place for other effect such as AO
 
            // 1. Offset position with helper function
-           vec3 normal = v0.pos*barycentric.x + v1.pos*barycentric.y + v2.pos*barycentric.z;
+           vec3 normal = v0.normal*barycentric.x + v1.normal*barycentric.y + v2.normal*barycentric.z;
+           vec3 worldNormal = normalize((normal * gl_WorldToObjectEXT).xyz);
+           faceforward(worldNormal, gl_WorldRayDirectionEXT, worldNormal);
            vec3 pos_off = OffsetPositionAlongNormal(pos, normal);
 
            // maybe could be 0, we are already offsetting above
@@ -116,7 +118,7 @@ void main() {
            float ao_misses = 0;
            for(int i = 0; i < AO_NUM; ++i){
                    // generate direction
-                   vec3 dir = GetRandCosDir(normal);
+                   vec3 dir = GetRandCosDir(worldNormal);
                    payload.hitType = 1;
 
                    // trace
