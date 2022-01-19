@@ -50,3 +50,9 @@ std::array<VkVertexInputAttributeDescription, 3> Vertex::getAttributeDescription
 
     return attributeDescriptions;
 }
+
+Vertex::Vertex(const glm::vec3 &pos, const glm::vec3 &normal, const glm::vec2 &texCoord, const uint32_t materialId)
+    : pos(pos), normal(normal), texCoord(texCoord), materialId(materialId) {}
+
+Vertex::Vertex()
+    : pos({0, 0, 0}), normal(0, 0, 1), texCoord(0, 0), materialId(0) {}

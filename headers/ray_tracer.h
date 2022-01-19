@@ -311,8 +311,21 @@ struct RayTracerApp
                       VkMemoryAllocateFlags allocFlags = VK_MEMORY_ALLOCATE_FLAG_BITS_MAX_ENUM);
     // asset utils
     std::vector<char> readFile(const std::string &filename);
-    void loadModel(Model &m, Rt_model &rt_m);
     void loadRTGeometry(Rt_model &m, std::string path);
+
+    void loadModel(Model &m, Rt_model &rt_m);
+
+    void loadVertex(Vertex &vertex, Model &m, Rt_model &rt_m, std::map<Vertex, uint32_t> &uniqueVertices);
+    void loadVertices(std::vector<Vertex> &vertices, Model &m, Rt_model &rt_m, std::map<Vertex, uint32_t> &uniqueVertices);
+    void loadIndex(uint32_t index, std::vector<Vertex> &vertices, Model &m, Rt_model &rt_m, std::map<Vertex, uint32_t> &uniqueVertices);
+    void loadIndices(std::vector<uint32_t> &indices, std::vector<Vertex> &vertices, Model &m, Rt_model &rt_m, std::map<Vertex, uint32_t> &uniqueVertices);
+
+    void loadPlane(glm::vec3 center, glm::vec3 rotation, float height, float width, Model &m, Rt_model &rt_m, std::map<Vertex, uint32_t> &uniqueVertices, uint32_t materialId);
+    std::vector<Vertex> getSphereVertices(glm::vec3 center, float radius, int n, int m, uint32_t materialId);
+    std::vector<uint32_t> getSphereIndices(int n, int m, std::vector<Vertex> &vertices, std::map<Vertex, uint32_t> &uniqueVertices);
+    void loadSphere(glm::vec3 center, float radius, Model &m, Rt_model &rt_m, std::map<Vertex, uint32_t> &uniqueVertices, uint32_t materialId);
+
+    void loadGeneratedShapes(Model &m, Rt_model &rt_m, std::map<Vertex, uint32_t> &uniqueVertices);
 };
 
 #endif  // ray_tracer_H

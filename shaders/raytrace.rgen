@@ -12,6 +12,11 @@ layout(location = 0) rayPayloadEXT Payload {
 	//TODO
     vec3 hitValue;
     int hitType;
+    int  depth;
+    vec3 attenuation;
+    int  done;
+    vec3 rayOrigin;
+    vec3 rayDir;
 } payload;
 
 layout(binding = 0) uniform UniformBufferObject {
@@ -40,18 +45,39 @@ void main() {
     float tMax     = 10000.0;
 
     payload.hitType = 0;
-    traceRayEXT(topLevelAS,     // acceleration structure
-                rayFlags,       // rayFlags
-                0xFF,           // cullMask
-                0,              // sbtRecordOffset
-                0,              // sbtRecordStride
-                0,              // missIndex
-                origin.xyz,     // ray origin
-                tMin,           // ray min range
-                direction.xyz,  // ray direction
-                tMax,           // ray max range
-                0               // payload (location = 0)
-    );
+    payload.depth = 0;
+    payload.attenuation = vec3(1.0f, 1.0f, 1.0f);
+    payload.done = 1;
+    payload.rayOrigin = origin.xyz;
+    payload.rayDir = direction.xyz;
 
-    imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(pow(payload.hitValue, vec3(1.0/2.2,1.0/2.2,1.0/2.2)), 1.0));
+    vec3 hitValue = vec3(0);
+
+    for (;;) {
+
+        traceRayEXT(topLevelAS,     // acceleration structure
+                    rayFlags,       // rayFlags
+                    0xFF,           // cullMask
+                    0,              // sbtRecordOffset
+                    0,              // sbtRecordStride
+                    0,              // missIndex
+                    origin.xyz,     // ray origin
+                    tMin,           // ray min range
+                    direction.xyz,  // ray direction
+                    tMax,           // ray max range
+                    0               // payload (location = 0)
+        );
+
+        hitValue += payload.hitValue * payload.attenuation;
+
+        payload.depth++;
+        if(payload.done == 1 || payload.depth >= 50)
+          break;
+
+        origin.xyz = payload.rayOrigin;
+        direction.xyz = payload.rayDir;
+        payload.done = 1;
+    }
+
+    imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(pow(hitValue, vec3(1.0/2.2,1.0/2.2,1.0/2.2)), 1.0));
 }

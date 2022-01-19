@@ -16,6 +16,10 @@ struct Vertex
     alignas(16) glm::vec3 pos;
     alignas(16) glm::vec3 normal;
     alignas(8) glm::vec2 texCoord;
+    alignas(4) uint32_t materialId;
+
+    Vertex();
+    Vertex(const glm::vec3 &pos, const glm::vec3 &normal, const glm::vec2 &texCoord, uint32_t materialId);
 
     bool operator==(const Vertex &other) const;
     bool operator<(const Vertex &other) const;

@@ -1,5 +1,163 @@
 #include "ray_tracer.h"
 
+void RayTracerApp::loadIndex(uint32_t index, std::vector<Vertex> &vertices, Model &m, Rt_model &rt_m, std::map<Vertex, uint32_t> &uniqueVertices) {
+
+    m.indices.push_back(uniqueVertices[vertices[index]]);
+    rt_m.indices.push_back(uniqueVertices[vertices[index]]);
+}
+
+void RayTracerApp::loadIndices(std::vector<uint32_t> &indices, std::vector<Vertex> &vertices, Model &m, Rt_model &rt_m, std::map<Vertex, uint32_t> &uniqueVertices) {
+
+    for (uint32_t index : indices) {
+        loadIndex(index, vertices, m, rt_m, uniqueVertices);
+    }
+}
+
+void RayTracerApp::loadVertex(Vertex &vertex, Model &m, Rt_model &rt_m, std::map<Vertex, uint32_t> &uniqueVertices) {
+
+    if (uniqueVertices.count(vertex) == 0)
+    {
+        uniqueVertices[vertex] = static_cast<uint32_t>(m.vertices.size());
+        m.vertices.push_back(vertex);
+        rt_m.vertices.push_back(vertex.pos.x);
+        rt_m.vertices.push_back(vertex.pos.y);
+        rt_m.vertices.push_back(vertex.pos.z);
+    }
+}
+
+void RayTracerApp::loadVertices(std::vector<Vertex> &vertices, Model &m, Rt_model &rt_m, std::map<Vertex, uint32_t> &uniqueVertices) {
+
+    for (Vertex &vertex : vertices) {
+        loadVertex(vertex, m, rt_m, uniqueVertices);
+    }
+}
+
+void RayTracerApp::loadPlane(glm::vec3 center, glm::vec3 rotation, float height, float width, Model &m, Rt_model &rt_m, std::map<Vertex, uint32_t> &uniqueVertices, uint32_t materialId) {
+
+    auto mtx = glm::mat4(1);
+    mtx = glm::translate(mtx, center);
+    mtx = glm::rotate(mtx, rotation.x, {1, 0, 0});
+    mtx = glm::rotate(mtx, rotation.y, {0, 1, 0});
+    mtx = glm::rotate(mtx, rotation.z, {0, 0, 1});
+
+    glm::vec3 normal = glm::vec3(mtx * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f));
+
+    std::vector<Vertex> vertices = {
+        { glm::vec3(mtx * glm::vec4(+width / 2, 0.0f, +height / 2, 1.0f)), normal, { 0.0f, 0.0f }, materialId },
+        { glm::vec3(mtx * glm::vec4(+width / 2, 0.0f, -height / 2, 1.0f)), normal, { 0.0f, 0.0f }, materialId },
+        { glm::vec3(mtx * glm::vec4(-width / 2, 0.0f, -height / 2, 1.0f)), normal, { 0.0f, 0.0f }, materialId },
+        { glm::vec3(mtx * glm::vec4(-width / 2, 0.0f, +height / 2, 1.0f)), normal, { 0.0f, 0.0f }, materialId },
+    };
+
+    loadVertices(vertices, m, rt_m, uniqueVertices);
+
+    std::vector<uint32_t> indices = {
+        0, 1, 2,
+        0, 2, 3,
+    };
+
+    loadIndices(indices, vertices, m, rt_m, uniqueVertices);
+}
+
+std::vector<Vertex> RayTracerApp::getSphereVertices(glm::vec3 center, float radius, int n, int m, uint32_t materialId) {
+
+    std::vector<Vertex> vertices;
+
+    vertices.push_back({ {0.0f, radius, 0.0f }, {0.0f, 1.0f, 0.0f}, { 0.0f, 0.0f }, materialId });
+
+    float alphaDelta = M_PI / n;
+    float alpha = alphaDelta;
+    for (int i = 0; i < n - 1; i++) {
+
+        float betaDelta = M_2_PI / m;
+        float beta = 0.0f;
+        for (int j = 0; j < m; j++) {
+
+            glm::vec3 position = { radius * sinf(alpha) * cosf(beta), radius * cosf(alpha), radius * sinf(alpha) * sinf(beta) };
+            position += center;
+            glm::vec3 normal = { sinf(alpha) * cosf(beta), cosf(alpha), sinf(alpha) * sinf(beta) };
+
+            vertices.push_back({ position, normal, { 0.0f, 0.0f }, materialId });
+
+            beta += betaDelta;
+        }
+        alpha += alphaDelta;
+    }
+
+    vertices.push_back({ {0.0f, -radius, 0.0f }, {0.0f, -1.0f, 0.0f}, { 0.0f, 0.0f }, materialId });
+
+    return vertices;
+}
+
+std::vector<uint32_t> RayTracerApp::getSphereIndices(int n, int m, std::vector<Vertex> &vertices, std::map<Vertex, uint32_t> &uniqueVertices) {
+
+    int verticesCount = (n - 1) * m + 2;
+
+    std::vector<uint32_t> indices;
+    int i, j;
+
+    for (j = 0; j < m - 1; j++) {
+        indices.push_back(uniqueVertices[vertices[0]]);
+        indices.push_back(uniqueVertices[vertices[j + 2]]);
+        indices.push_back(uniqueVertices[vertices[j + 1]]);
+    }
+    indices.push_back(uniqueVertices[vertices[0]]);
+    indices.push_back(uniqueVertices[vertices[1]]);
+    indices.push_back(uniqueVertices[vertices[m]]);
+
+    for (i = 0; i < n - 2; i++) {
+        for (j = 0; j < m - 1; j++) {
+            indices.push_back(uniqueVertices[vertices[i * m + j + 1]]);
+            indices.push_back(uniqueVertices[vertices[i * m + j + 2]]);
+            indices.push_back(uniqueVertices[vertices[(i + 1) * m + j + 2]]);
+            indices.push_back(uniqueVertices[vertices[i * m + j + 1]]);
+            indices.push_back(uniqueVertices[vertices[(i + 1) * m + j + 2]]);
+            indices.push_back(uniqueVertices[vertices[(i + 1) * m + j + 1]]);
+        }
+        indices.push_back(uniqueVertices[vertices[i * m + j + 1]]);
+        indices.push_back(uniqueVertices[vertices[i * m + 1]]);
+        indices.push_back(uniqueVertices[vertices[(i + 1) * m + 1]]);
+        indices.push_back(uniqueVertices[vertices[i * m + j + 1]]);
+        indices.push_back(uniqueVertices[vertices[(i + 1) * m + 1]]);
+        indices.push_back(uniqueVertices[vertices[(i + 1) * m + j + 1]]);
+    }
+
+    for (j = 0; j < m - 1; j++) {
+        indices.push_back(uniqueVertices[vertices[i * m + j + 1]]);
+        indices.push_back(uniqueVertices[vertices[i * m + j + 2]]);
+        indices.push_back(uniqueVertices[vertices[verticesCount - 1]]);
+    }
+    indices.push_back(uniqueVertices[vertices[(i + 1) * m]]);
+    indices.push_back(uniqueVertices[vertices[i * m + 1]]);
+    indices.push_back(uniqueVertices[vertices[verticesCount - 1]]);
+
+    return indices;
+}
+
+void RayTracerApp::loadSphere(glm::vec3 center, float radius, Model &m, Rt_model &rt_m, std::map<Vertex, uint32_t> &uniqueVertices, uint32_t materialId) {
+
+    int N = 10;
+    int M = 10;
+
+    std::vector<Vertex> vertices = getSphereVertices(center, radius, N, M, materialId);
+    loadVertices(vertices, m, rt_m, uniqueVertices);
+
+    std::vector<uint32_t> indices = getSphereIndices(N, M, vertices, uniqueVertices);
+    loadIndices(indices, vertices, m, rt_m, uniqueVertices);
+}
+
+void RayTracerApp::loadGeneratedShapes(Model &m, Rt_model &rt_m, std::map<Vertex, uint32_t> &uniqueVertices) {
+
+    //ground
+    loadPlane({0.0f, -0.2f, 0.0f}, {0.0f, 0.0f, 0.0f}, 20.0f, 20.0f, m, rt_m, uniqueVertices, 0);
+
+    //mirrors
+    loadPlane({10.0f, 10.0f - 0.2f, 0.0f}, {0.0f, 0.0f, M_PI_2}, 20.0f, 20.0f, m, rt_m, uniqueVertices, 1);
+    loadPlane({-10.0f, 10.0f - 0.2f, 0.0f}, {0.0f, 0.0f, -M_PI_2}, 20.0f, 20.0f, m, rt_m, uniqueVertices, 1);
+
+    //loadSphere({5.0f, 5.0f, 5.0f}, 3.0f, m, rt_m, uniqueVertices, 0);
+}
+
 void RayTracerApp::loadModel(Model &m, Rt_model &rt_m)
 {
     tinyobj::ObjReaderConfig config;
@@ -27,6 +185,9 @@ void RayTracerApp::loadModel(Model &m, Rt_model &rt_m)
 
     std::map<Vertex, uint32_t> uniqueVertices{};
     m.materials = materials;
+
+    loadGeneratedShapes(m, rt_m, uniqueVertices);
+
     for (const auto &shape : shapes)
     {
         for (const auto &index : shape.mesh.indices)
