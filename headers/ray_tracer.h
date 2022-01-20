@@ -4,6 +4,7 @@
 #include <algorithm>
 #include "vulkan/vulkan.h"
 #include "vulkan/vulkan_core.h"
+#include <thread>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -19,6 +20,9 @@
 
 #include "stb_image.h"
 #include "tiny_obj_loader.h"
+
+#include <options.h>
+#include <QApplication>
 
 #include <array>
 #include <chrono>
@@ -51,6 +55,7 @@ struct UniformBufferObject
     alignas(16) glm::mat4 inv_view;
     alignas(16) glm::mat4 proj;
     alignas(16) glm::mat4 inv_proj;
+    alignas(16) glm::vec4 ao_opt;
 };
 
 struct SwapChainSupportDetails
@@ -212,6 +217,10 @@ struct RayTracerApp
     Model model;
     Rt_model ray_model;
     Camera camera;
+    std::thread opt;
+
+    std::unique_ptr<QApplication> app;
+    std::unique_ptr<Options> options;
 
     // member functions
     void run();

@@ -9,6 +9,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Vulkan REQUIRED)
 find_package(glfw3 REQUIRED)
+find_package(Qt6 COMPONENTS Widgets REQUIRED)
+
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
 
 function(add_shader TARGET SHADER)
     find_program(GLSLC glslc)
@@ -43,11 +49,14 @@ set(SOURCES
     sources/vulkan_utilities.cpp
     sources/create_functions.cpp
     sources/asset_utilities.cpp
+    sources/options.cpp
+    sources/options.ui
 
     headers/ray_tracer.h
     headers/constants.h
     headers/extension_functions.h
     headers/vertex.h
+    headers/options.h
 )
 
 set(SHADERS
@@ -71,6 +80,7 @@ add_shader(${PROJECT_NAME} raytrace.rchit)
 add_shader(${PROJECT_NAME} raytrace.rmiss)
 
 target_link_libraries(${PROJECT_NAME} glfw Vulkan::Vulkan)
+target_link_libraries(${PROJECT_NAME} Qt6::Widgets)
 
 add_custom_command(
         TARGET ${PROJECT_NAME} POST_BUILD

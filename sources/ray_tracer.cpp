@@ -1,4 +1,6 @@
 #include "ray_tracer.h"
+#include <QApplication>
+#include <options.h>
 
 void RayTracerApp::run()
 {
@@ -19,6 +21,16 @@ void RayTracerApp::initVulkan()
     createImageViews();
     createRenderPass();
     createDescriptorSetLayout();
+
+    opt = std::thread([&]() {
+        int argc = 1;
+        char* argv[1];
+        app = std::make_unique<QApplication>(argc, &argv[0]);
+        options = std::make_unique<Options>();
+        options->show();
+        app->exec();
+    });
+
 
     // createGraphicsPipeline();
     createRTPipeline();
@@ -53,6 +65,8 @@ void RayTracerApp::initVulkan()
     createRTCommandBuffers();
 
     createSyncObjects();
+
+
 }
 
 bool RayTracerApp::hasStencilComponent(VkFormat format)
@@ -176,6 +190,14 @@ void RayTracerApp::updateUniformBuffers(uint32_t currentImage)
     // and Vulkan reverts the y coord
     ubo.proj[1][1] *= -1;
     ubo.inv_proj = glm::inverse(ubo.proj);
+
+    // AO options
+    ubo.ao_opt[0] = static_cast<float>(options->getAOtMin());
+    ubo.ao_opt[1] = static_cast<float>(options->getAOtMax());
+    ubo.ao_opt[2] = static_cast<float>(options->getAORays());
+
+    // is turned on
+    ubo.ao_opt[3] = static_cast<int>(options->getAO());
 
     void *data;
     vkMapMemory(device, uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);

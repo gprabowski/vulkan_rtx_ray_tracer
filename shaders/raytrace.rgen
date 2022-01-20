@@ -24,6 +24,7 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 inv_view;
     mat4 proj;
     mat4 inv_proj;
+    vec4 ao_opt;
 } ubo;
 
 layout(binding = 3, rgba32f) uniform image2D image;

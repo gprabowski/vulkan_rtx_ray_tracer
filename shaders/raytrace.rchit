@@ -41,6 +41,7 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 inv_view;
     mat4 proj;
     mat4 inv_proj;
+    vec4 ao_opt;
 } ubo;
 
 layout(binding = 1) uniform sampler2D texSampler;
@@ -115,43 +116,49 @@ void main() {
             }
 
             // place for other effect such as AO
-
-            // 1. Offset position with helper function
-            normal = faceforward(normal, gl_WorldRayDirectionEXT, normal);
-            vec3 pos_off = OffsetPositionAlongNormal(pos, normal);
-
-
-            // maybe could be 0, we are already offsetting above
-            tMin = 0.0;
-            // model dependent
-            tMax = 1.5;
             float ao_misses = 0;
-            for(int i = 0; i < AO_NUM; ++i){
+            if( int(ubo.ao_opt[3]) == 1) {
+
+                // 1. Offset position with helper function
+                normal = faceforward(normal, gl_WorldRayDirectionEXT, normal);
+                vec3 pos_off = OffsetPositionAlongNormal(pos, normal);
+
+
+                // maybe could be 0, we are already offsetting above
+                tMin = ubo.ao_opt[0];
+                tMax = ubo.ao_opt[1];
+
+                // model dependent
+                const int num_iter = int(ubo.ao_opt[2]);
+                for(int i = 0; i < num_iter; ++i){
                     // generate direction
                     vec3 dir = GetRandCosDir(normal);
                     payload.hitType = 1;
 
                     // trace
                     traceRayEXT(
-                             topLevelAS,
-                             rayFlags,
-                             0xFF,
-                             0,
-                             0,
-                             0,
-                             pos_off,
-                             tMin,
-                             dir,
-                             tMax,
-                             0
-                        );
+                         topLevelAS,
+                         rayFlags,
+                         0xFF,
+                         0,
+                         0,
+                         0,
+                         pos_off,
+                         tMin,
+                         dir,
+                         tMax,
+                         0
+                    );
                     if(payload.hitType == 0) // miss -> AO
                     {
                       ao_misses += 1.0f;
                     }
-            }
+                }
 
-            ao_misses /= AO_NUM;
+                ao_misses /= num_iter;
+            } else {
+                ao_misses = 1.0;
+            }
 
             if (v0.materialId == 1) {
 
